@@ -34,9 +34,9 @@ def count_params(model: nn.Module) -> int:
 
 def load_model_ckpt(model_ckpt_path: str, config: dict) -> nn.Module:
     
-    if config['hparams']['scheduler_type'] == 'DDPM':
+    if config['hparams']['pretrained_scheduler_type'] == 'DDPM':
         l_module = LightningDDPM_monai.load_from_checkpoint(model_ckpt_path)
-    elif config['hparams']['scheduler_type'] =='DDPM_DDIM':
+    elif config['hparams']['pretrained_scheduler_type'] =='DDPM_DDIM':
         l_module = LightningDDPMDDIM_monai.load_from_checkpoint(model_ckpt_path)
     
     return l_module.model
@@ -60,7 +60,7 @@ def load_model(config: dict) -> nn.Module:
             attention_levels=config['hparams']['DiffusionModelUnet']['attention_levels'],
             num_res_blocks=config['hparams']['DiffusionModelUnet']['num_res_blocks'],
             num_head_channels=config['hparams']['DiffusionModelUnet']['num_head_channels'],
-            num_class_embeds=6
+            num_class_embeds=config['hparams']['DiffusionModelUnet']['num_class_embeds']
         )
     model = load_model_ckpt(model_ckpt_path=config['exp']['model_ckpt_path'],config=config)
     return model

@@ -5,15 +5,15 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
 
-from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning
-from model_architecture import LightningDDPM_monai, LightningDDIM_monai, LightningDDPMDDIM_monai
+from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning, load_model
+from model_architecture import LightningDDPM_monai, LightningDDIM_monai, LightningDDPMDDIM_monai, Pretrained_LightningDDPM_monai
 
 
 
 def pipeline(config):
     logger = TensorBoardLogger(config['exp']['logdir'], name=config['exp']["exp_name"])
     
-    dm = UK_biobank_data_module(
+    dm = Retinal_Cond_Lightning(
         config=config
     )
     # dm = FakeData_lightning(config=config)
@@ -35,18 +35,13 @@ def pipeline(config):
         accelerator=config['exp']['accelerator'],
         callbacks=[checkpoint_callback],
         precision='16-mixed',
-        profiler='pytorch',
+        # profiler='pytorch',
         accumulate_grad_batches=8
     )
-    if config['hparams']['scheduler_type'] == 'DDPM':
-        DDPM_lightning = LightningDDPM_monai(config=config)
-        trainer.fit(model=DDPM_lightning, datamodule=dm)
-    elif config['hparams']['scheduler_type'] == 'DDIM':
-        DDIM_lightning = LightningDDIM_monai(config=config)
-        trainer.fit(model=DDIM_lightning, datamodule=dm)
-    else:
-        DDPM_DDIM_lightning = LightningDDPMDDIM_monai(config=config)
-        trainer.fit(model=DDPM_DDIM_lightning, datamodule=dm)
+    model = load_model(config=config)
+    DDPM_lightning = Pretrained_LightningDDPM_monai(config=config,model=model)
+    trainer.fit(model=DDPM_lightning, datamodule=dm)
+    
 
 def main(args):
     config = get_config(args.conf)

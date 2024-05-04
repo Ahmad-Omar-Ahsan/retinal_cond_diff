@@ -1,3 +1,3 @@
 from utils.conf_parser import get_config
-from utils.dataset import UK_biobank_data_module, UK_biobank_retinal, Fake_Dataset, FakeData_lightning
+from utils.dataset import UK_biobank_data_module, UK_biobank_retinal, Fake_Dataset, FakeData_lightning, Retinal_Cond_Lightning
 from utils.misc import seed_everything, count_params, load_model, load_model_ckpt

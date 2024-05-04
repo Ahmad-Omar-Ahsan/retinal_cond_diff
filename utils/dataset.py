@@ -52,7 +52,7 @@ class FakeData_lightning(LightningDataModule):
         return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
 
-class Retinal_Cond_lightning(LightningDataModule):
+class Retinal_Cond_Lightning(LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config

@@ -1,14 +1,8 @@
 from __future__ import annotations
 
-import pandas as pd
-import numpy as np
-import glob
-import bids
-import csv
-from generative.engines import DiffusionPrepareBatch
+
 from monai.inferers import Inferer
 import torch
-from generative.networks.nets import SPADEAutoencoderKL, SPADEDiffusionModelUNet
 
 from functools import partial
 
@@ -18,59 +12,9 @@ import torch.nn.functional as F
 from monai.utils import optional_import
 
 
-tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 
 
-def get_image_label_data(img_data_path, file_postfix, tsv_file, age_label_col,num_of_files=-1, session_tsv=None, whitelist_file=None, min_num_timepoints=1, max_num_timepoints=3):
-    #read all image filenames
-    image_files=glob.glob(img_data_path+'/*'+file_postfix)
 
-    #read tsv file
-    df=pd.read_csv(tsv_file,sep='\t')
-
-    #read session file if available
-    if session_tsv is not None:
-        df_session=pd.read_csv(session_tsv,sep='\t')
-
-    #read whitelist if available
-    whitelist_data=None
-    if whitelist_file is not None:
-        whitelist_data=np.loadtxt(whitelist_file,dtype=str)
-
-    if num_of_files>1:
-        image_files=image_files[0:num_of_files]
-
-    ages=[]
-    image_files_ret=[]
-    unique_sub_ids=set()
-    for image_file in image_files:
-        entities=bids.layout.parse_file_entities(image_file)
-        sub_id=entities['subject']
-        if not ((whitelist_data is not None) and (sub_id not in whitelist_data)):
-            if session_tsv is not None:
-                #number of timepoints in image list; safer than using the session_tsv
-                num_of_timepoints=len(np.array([1 for x in image_files if sub_id in x]))
-                if  (num_of_timepoints >= min_num_timepoints) and (num_of_timepoints <= max_num_timepoints):
-                    image_files_ret.append(image_file)
-                    ages.append(df_session[(df_session['subject']==sub_id) & (df_session['session']==entities['session'])][age_label_col].iloc[0])
-                    unique_sub_ids.add(sub_id)
-            else:
-                ages.append(df.loc[df['participant_id'].str.contains(sub_id)][age_label_col].iloc[0])
-                unique_sub_ids.add(sub_id)
-                image_files_ret.append(image_file)
-
-    return image_files_ret, ages,unique_sub_ids
-
-class SamplePredictionPrepareBatch(DiffusionPrepareBatch):
-    """
-    This class is used as a callable for the `prepare_batch` parameter of engine classes for diffusion training.
-    """
-
-    def __init__(self, num_train_timesteps: int, condition_name: Optional[str] = None) -> None:
-        super().__init__(num_train_timesteps=num_train_timesteps, condition_name=condition_name)
-
-    def get_target(self, images, noise, timesteps):
-        return images
     
 
 class FlexibleConditionalDiffusionInferer(Inferer):
