@@ -1,0 +1,67 @@
+exp:
+    exp_name: DDPM_DDIM_Biobank_10k_images_right
+    ckpt_dir: ./DDPM_DDIM_v2/right_eye/
+    ckpt_freq: 20
+    device: auto
+    accelerator: auto 
+    data_dir:  /home/ahmad/ahmad_experiments/retinal_data/output_right_png_10k/
+    image_extension: png
+    num_workers: 16 
+    model_ckpt_path: /home/ahmad/ahmad_experiments/retinal_cond_diff/epoch=161-step=82134.ckpt
+    sample_image_dir: DDPM_DDIM_PNDM_149_epoch_overfit
+    log_every_n_steps: 10
+    save_top_k: 20
+    denoised_img_dir: encode_denoised_DDIM_DDIM_intermediates_800
+    logdir: logs/DDPM_DDIM_1000
+
+
+hparams:
+    restore_ckpt:
+    seed: 0
+    batch_size: 2
+    min_epochs: 1
+    max_epochs: 1000
+    num_sanity_val_steps: 1
+    number_of_samples: 10
+
+    DiffusionModelUnet:
+        spatial_dims : 2
+        in_channels : 3
+        out_channels : 3
+        num_res_blocks: [2,2,2,2,2,2]
+        num_channels : [256, 256, 512, 512, 1024, 1024]
+        attention_levels : [False, False, False, True, True, True]
+        norm_num_groups: 32
+        resblock_updown: True
+        num_head_channels: [64, 64, 64, 64, 64, 64]
+        with_conditioning: False
+        transformer_num_layers: 1
+        num_class_embeds: 
+        upcast_attention: False
+        use_flash_attention: False
+
+    scheduler_type: DDPM_DDIM
+    DDPMScheduler: 
+        num_train_timesteps: 1000
+        schedule: linear_beta
+        variance_type: fixed_small
+        clip_sample: True
+        prediction_type: epsilon
+    
+    DDIMScheduler: 
+        num_train_timesteps: 1000
+        schedule: linear_beta
+        variance_type: fixed_small
+        clip_sample: True
+        prediction_type: epsilon
+        set_alpha_to_one: True
+    
+    
+    num_train_timesteps: 1000
+    num_inference_timesteps: 1000
+
+    image_h: 224
+    image_w: 224 
+
+    learning_rate: 0.00001
+    denoising_timestep: 800

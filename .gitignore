@@ -1,0 +1,10 @@
+.vscode
+__pycache__
+logs
+runs
+*.jpg
+*.pkl
+*.ckpt
+tutorial.ipynb
+*.png
+ukbb_wave.py
