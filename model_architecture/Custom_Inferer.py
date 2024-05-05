@@ -10,12 +10,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from monai.utils import optional_import
+import math
+from typing import Callable
 
 
 
-
-
-    
+tqdm, has_tqdm = optional_import("tqdm", name="tqdm")
 
 class FlexibleConditionalDiffusionInferer(Inferer):
     """
@@ -62,11 +62,7 @@ class FlexibleConditionalDiffusionInferer(Inferer):
             noisy_image = torch.cat([noisy_image, conditioning], dim=1)
             conditioning = None
             
-        diffusion_model = (
-            partial(diffusion_model, seg=seg)
-            if isinstance(diffusion_model, SPADEDiffusionModelUNet)
-            else diffusion_model
-        )
+       
 
         if mode == "class":
             prediction = diffusion_model(x=noisy_image, timesteps=timesteps, class_labels=conditioning)
@@ -113,11 +109,7 @@ class FlexibleConditionalDiffusionInferer(Inferer):
         intermediates = []
         for t in progress_bar:
             # 1. predict noise model_output
-            diffusion_model = (
-                partial(diffusion_model, seg=seg)
-                if isinstance(diffusion_model, SPADEDiffusionModelUNet)
-                else diffusion_model
-            )
+            
             if mode == "concat":
                 model_input = torch.cat([image, conditioning], dim=1)
                 model_output = diffusion_model(
@@ -190,11 +182,6 @@ class FlexibleConditionalDiffusionInferer(Inferer):
         for t in progress_bar:
             timesteps = torch.full(inputs.shape[:1], t, device=inputs.device).long()
             noisy_image = self.scheduler.add_noise(original_samples=inputs, noise=noise, timesteps=timesteps)
-            diffusion_model = (
-                partial(diffusion_model, seg=seg)
-                if isinstance(diffusion_model, SPADEDiffusionModelUNet)
-                else diffusion_model
-            )
             if mode == "concat":
                 noisy_image = torch.cat([noisy_image, conditioning], dim=1)
                 model_output = diffusion_model(noisy_image, timesteps=timesteps, context=None)
