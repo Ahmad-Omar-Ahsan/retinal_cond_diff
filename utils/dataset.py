@@ -59,7 +59,8 @@ class Retinal_Cond_Lightning(LightningDataModule):
         self.data_dir = self.config['exp']['data_dir']
         self.size = self.config['hparams']['batch_size']
         self.num_classes = self.config['hparams']['batch_size']
-        self.transform = transforms.Compose([transforms.ToTensor()])
+        self.transform = transforms.Compose([transforms.Resize(224),transforms.ToTensor()
+                                             ])
 
     def setup(self, stage):
         dataset = ImageFolder(root=self.data_dir, transform=self.transform)
