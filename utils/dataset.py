@@ -84,7 +84,7 @@ class Retinal_Cond_Lightning(LightningDataModule):
         self.train = train_dataset
         self.test = test_dataset
         self.val = valid_dataset
-
+        print(f"Train, val and test length:  {len(self.train), len(self.val), len(self.test)}")
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
