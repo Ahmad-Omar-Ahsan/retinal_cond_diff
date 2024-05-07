@@ -4,8 +4,9 @@ import torch
 import numpy as np
 
 from pytorch_lightning import LightningDataModule
+from sklearn.model_selection import train_test_split
 from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset, random_split, Subset
 from typing import List, Optional, Dict
 from torchvision.io import read_image
 from torchvision import transforms
@@ -64,10 +65,25 @@ class Retinal_Cond_Lightning(LightningDataModule):
 
     def setup(self, stage):
         dataset = ImageFolder(root=self.data_dir, transform=self.transform)
-        train_set, test_set, val_set = torch.utils.data.random_split(dataset, [0.9, 0.05, 0.05])
-        self.train = train_set
-        self.test = test_set
-        self.val = val_set
+        targets = dataset.targets
+        train_idx, temp_idx = train_test_split(
+            np.arange(len(targets)),
+            test_size=0.1,
+            shuffle=True,
+            stratify=targets
+        )
+        valid_idx, test_idx = train_test_split(
+            temp_idx,
+            test_size=0.5,
+            shuffle=True,
+            stratify=np.array(targets)[temp_idx]
+        )
+        train_dataset = Subset(dataset, train_idx)
+        valid_dataset = Subset(dataset, valid_idx)
+        test_dataset = Subset(dataset, test_idx)
+        self.train = train_dataset
+        self.test = test_dataset
+        self.val = valid_dataset
 
 
     def train_dataloader(self):

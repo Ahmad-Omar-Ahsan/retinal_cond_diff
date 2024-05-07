@@ -8,7 +8,7 @@ exp:
     image_extension: png
     num_workers: 16 
     model_ckpt_path: /home/ahmad/ahmad_experiments/retinal_cond_diff/epoch=161-step=82134.ckpt
-    sample_image_dir: Cond_Diff_Retinal_18k
+    sample_image_dir: 161_epoch_samples
     log_every_n_steps: 10
     save_top_k: 20
     denoised_img_dir: encode_denoised_DDIM_DDIM_intermediates_800
@@ -22,7 +22,7 @@ hparams:
     min_epochs: 1
     max_epochs: 100
     num_sanity_val_steps: 1
-    number_of_samples: 10
+    number_of_samples: 20
 
     DiffusionModelUnet:
         spatial_dims : 2
