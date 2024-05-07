@@ -19,7 +19,7 @@ hparams:
     restore_ckpt:
     seed: 0
     batch_size: 1
-    min_epochs: 1
+    min_epochs: 100
     max_epochs: 100
     num_sanity_val_steps: 1
     number_of_samples: 20
