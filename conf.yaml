@@ -6,13 +6,13 @@ exp:
     accelerator: auto 
     data_dir:  /work/wilms_lab/ahmad/Dataset_SPIE
     image_extension: png
-    num_workers: 16 
+    num_workers: 1
     model_ckpt_path: /home/ahmad.omarahsan/retinal_cond_diff/epoch=161-step=82134.ckpt
     sample_image_dir: 161_epoch_samples
     log_every_n_steps: 10
     save_top_k: 20
     denoised_img_dir: encode_denoised_DDIM_DDIM_intermediates_800
-    logdir: logs/Cond_Diff_Runs
+    logdir: logs/Cond_Diff_Tests
 
 
 hparams:
