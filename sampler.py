@@ -20,7 +20,7 @@ def pipeline(config):
         num_train_timesteps=config['hparams']['num_train_timesteps']
     )
     scheduler_DDIM = DDIMScheduler(
-        num_train_timesteps=config['hparams']['num_train_timesteps']
+        num_train_timesteps=config['hparams']['num_train_timesteps'],
     )
     
     inferer = FlexibleConditionalDiffusionInferer(

@@ -59,7 +59,7 @@ hparams:
     
     
     num_train_timesteps: 1000
-    num_inference_timesteps: 200
+    num_inference_timesteps: 1000
 
     image_h: 224
     image_w: 224 
