@@ -9,7 +9,7 @@ from generative.networks.schedulers import  DDIMScheduler
 from torchvision.utils import make_grid
 import torch.nn.functional as F
 from model_architecture.DDPM_PL import set_timesteps_without_ratio
-from model_architecture import FlexibleConditionalDiffusionInferer
+from .Custom_Inferer import FlexibleConditionalDiffusionInferer
 torch.set_float32_matmul_precision('medium')
 
 
