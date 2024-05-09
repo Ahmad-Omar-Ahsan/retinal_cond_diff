@@ -40,7 +40,7 @@ hparams:
         upcast_attention: False
         use_flash_attention: False
 
-    pretrained_scheduler_type: DDPM_DDIM
+    pretrained_scheduler_type: conditional_DDPM
     scheduler_type: DDPM
     DDPMScheduler: 
         num_train_timesteps: 1000

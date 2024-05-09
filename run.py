@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
 
 from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning, load_model
-from model_architecture import LightningDDPM_monai, LightningDDIM_monai, LightningDDPMDDIM_monai, Pretrained_LightningDDPM_monai
+from model_architecture import LightningDDPM_monai, LightningDDIM_monai, LightningDDPMDDIM_monai, Pretrained_LightningDDPM_monai,Conditional_DDIM_monai
 
 
 
@@ -38,9 +38,10 @@ def pipeline(config):
         # profiler='pytorch',
         accumulate_grad_batches=8
     )
-    model = load_model(config=config)
-    DDPM_lightning = Pretrained_LightningDDPM_monai(config=config,model=model)
-    trainer.fit(model=DDPM_lightning, datamodule=dm)
+    # model = load_model(config=config)
+    # DDPM_lightning = Pretrained_LightningDDPM_monai(config=config,model=model)
+    DDIM_lightning = Conditional_DDIM_monai(config=config)
+    trainer.fit(model=DDIM_lightning, datamodule=dm)
     
 
 def main(args):

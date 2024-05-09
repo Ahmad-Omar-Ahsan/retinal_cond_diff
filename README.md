@@ -1,4 +1,4 @@
-# Hybrid Generative-Discriminative Diffusion model for Colour Fundus Photography
+# Conditional Diffusion model for Colour Fundus Photography
 
 ## Setup environment
 

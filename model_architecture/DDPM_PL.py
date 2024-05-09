@@ -201,9 +201,9 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         # with autocast(enabled=True):
         noise = torch.randn((images.shape[0], images.shape[1], images.shape[2], images.shape[3])).to(images.device)
         timesteps = torch.randint(0, self.inferer.scheduler.num_train_timesteps, (images.shape[0],)).to(images.device)
-        sample_pred = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=labels)
+        noise_pred = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=labels)
 
-        train_loss = self.criterion(sample_pred.float(), images.float())
+        train_loss = self.criterion(noise_pred.float(), noise.float())
         self.log("training_loss", train_loss, prog_bar=True)
         
         # self.batches.append(batch)
@@ -216,9 +216,9 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         # with autocast(enabled=True):
         noise = torch.randn((images.shape[0], images.shape[1], images.shape[2], images.shape[3]), device=images.device)
         timesteps = torch.randint(0, self.inferer.scheduler.num_train_timesteps, (images.shape[0],), device=images.device).long()
-        sample_pred = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=labels)
+        noise_pred = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=labels)
 
-        val_loss = self.criterion(sample_pred.float(), images.float())
+        val_loss = self.criterion(noise_pred.float(), noise.float())
         self.outputs[dataloader_idx].append({"val_loss": val_loss})
         return val_loss
 
@@ -250,4 +250,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         return optimizer
-    
+
+
+
+
+
