@@ -167,8 +167,8 @@ class Conditional_DDIM_monai(pl.LightningModule):
         self.scheduler = DDIMScheduler(
             num_train_timesteps=config['hparams']['DDIMScheduler']['num_train_timesteps'],
             schedule=config['hparams']['DDIMScheduler']['schedule'],
-            variance_type=config['hparams']['DDIMScheduler']['variance_type'],
             clip_sample=config['hparams']['DDIMScheduler']['clip_sample'],
+            set_alpha_to_one=config['hparams']['DDIMScheduler']['set_alpha_to_one'],
             prediction_type=config['hparams']['DDIMScheduler']['prediction_type']
         )
        
