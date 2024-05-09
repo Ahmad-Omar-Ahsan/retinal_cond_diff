@@ -1,4 +1,4 @@
-from model_architecture.DDPM_PL import LightningDDPM_monai, set_timesteps_without_ratio, Pretrained_LightningDDPM_monai, Conditional_DDPM_monai
-from model_architecture.DDIM_PL import LightningDDIM_monai
+from model_architecture.DDPM_PL import LightningDDPM_monai, set_timesteps_without_ratio, Pretrained_LightningDDPM_monai
+from model_architecture.DDIM_PL import LightningDDIM_monai, Conditional_DDIM_monai
 from model_architecture.DDPM_DDIM_PL import LightningDDPMDDIM_monai
 from model_architecture.Custom_Inferer import FlexibleConditionalDiffusionInferer
