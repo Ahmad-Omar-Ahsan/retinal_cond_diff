@@ -7,8 +7,8 @@ exp:
     data_dir:  /home/ahmad/ahmad_experiments/retinal_data/Dataset_SPIE
     image_extension: png
     num_workers: 16 
-    model_ckpt_path: /home/ahmad/ahmad_experiments/retinal_cond_diff/epoch=161-step=82134.ckpt
-    sample_image_dir: 161_epoch_samples
+    model_ckpt_path: /home/ahmad/ahmad_experiments/retinal_cond_diff/Cond_Diff/DDPM/epoch=38-step=22425.ckpt
+    sample_image_dir: Conditional_DDIM_samples_epoch_38
     log_every_n_steps: 10
     save_top_k: 20
     denoised_img_dir: encode_denoised_DDIM_DDIM_intermediates_800
@@ -40,7 +40,7 @@ hparams:
         upcast_attention: False
         use_flash_attention: False
 
-    pretrained_scheduler_type: DDPM_DDIM
+    pretrained_scheduler_type: conditional_DDPM
     scheduler_type: DDPM
     DDPMScheduler: 
         num_train_timesteps: 1000
@@ -59,7 +59,7 @@ hparams:
     
     
     num_train_timesteps: 1000
-    num_inference_timesteps: 1000
+    num_inference_timesteps: 200
 
     image_h: 224
     image_w: 224 

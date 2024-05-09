@@ -7,24 +7,26 @@ from generative.networks.schedulers import DDPMScheduler,DDIMScheduler, PNDMSche
 from generative.inferers import DiffusionInferer
 from torch.cuda.amp import  autocast
 from torchvision.utils import save_image, make_grid
+from model_architecture import FlexibleConditionalDiffusionInferer
+from generative.networks.nets import DiffusionModelUNet
 torch.set_float32_matmul_precision('high')
 
 def pipeline(config):
+        #
     model = load_model(config=config)
     in_channels, image_h, image_w =  3,config['hparams']['image_h'] , config['hparams']['image_w']
-    scheduler_PNDM = PNDMScheduler(
-            num_train_timesteps=config['hparams']['num_train_timesteps'], skip_prk_steps=True
-        )
-    scheduler_DDIM = DDIMScheduler(
-        num_train_timesteps=config['hparams']['num_train_timesteps']
-    )
+    
     scheduler_DDPM = DDPMScheduler(
         num_train_timesteps=config['hparams']['num_train_timesteps']
     )
-    inferer = DiffusionInferer(
-            scheduler=scheduler_DDPM
+    scheduler_DDIM = DDIMScheduler(
+        num_train_timesteps=config['hparams']['num_train_timesteps']
+    )
+    
+    inferer = FlexibleConditionalDiffusionInferer(
+            scheduler=scheduler_DDIM
         )
-    schedulers = [scheduler_DDPM]
+    schedulers = [scheduler_DDIM]
     sample_images = []
     n_images = config['hparams']['number_of_samples']
     fp = config['exp']['sample_image_dir']
@@ -32,17 +34,20 @@ def pipeline(config):
 
     for i in range(n_images):
         sample_images = []
-        noise = torch.randn((4, in_channels , image_h, image_w)).to('cuda')
+        noise = torch.randn((1, in_channels , image_h, image_w)).to('cuda')
+        noise = torch.repeat_interleave(noise,6,dim=0)
+        labels = torch.arange(6)
+
         for j in range(len(schedulers)):
             with autocast(enabled=True):
                 schedulers[j].set_timesteps(num_inference_steps=config['hparams']['num_inference_timesteps'])
                 
-                images = inferer.sample(input_noise=noise, diffusion_model=model, scheduler=schedulers[j])
+                images = inferer.sample(input_noise=noise, diffusion_model=model, scheduler=schedulers[j], conditioning=labels)
                 sample_images.append(images)
         
         sample_images = torch.concat(sample_images,dim=0)
         grid_images = make_grid(sample_images)
-        save_file_path = os.path.join(fp, f"DDPM_DDIM_PNDM_{i}.png")
+        save_file_path = os.path.join(fp, f"AMD_Cat_D_Gl_Mya_N_{i}.png")
         save_image(grid_images, save_file_path)
         print(f"Saved image_{i}")
 
