@@ -1,5 +1,5 @@
 exp:
-    exp_name: Cond_Diff_Retinal_18k
+    exp_name: Cond_Diff_Retinal_18k_from_scratch
     ckpt_dir: ./Cond_Diff
     ckpt_freq: 20
     device: auto
@@ -12,7 +12,7 @@ exp:
     log_every_n_steps: 10
     save_top_k: 20
     denoised_img_dir: encode_denoised_DDIM_DDIM_intermediates_800
-    logdir: logs/Cond_Diff_Runs
+    logdir: logs/Cond_Diff_Runs_Scratch
 
 
 hparams:
