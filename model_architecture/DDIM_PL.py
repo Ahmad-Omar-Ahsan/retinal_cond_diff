@@ -222,10 +222,10 @@ class Conditional_DDIM_monai(pl.LightningModule):
             flat_outputs.extend(lst)
 
         avg_loss = torch.stack([x["val_loss"] for x in flat_outputs]).mean()
-        labels = torch.arange(6)
+        labels = torch.arange(6).to(self.device)
         current_epoch = self.current_epoch + 1
         # with autocast(enabled=True):
-        if current_epoch % 5 == 0:
+        if current_epoch % 1 == 0:
             print(f'On validation epoch:{self.current_epoch} end\n')
             sampling_steps = [1000, 500, 200, 50]
             for idx, reduced_sampling_steps in enumerate(sampling_steps):
