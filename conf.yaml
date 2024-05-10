@@ -4,11 +4,11 @@ exp:
     ckpt_freq: 20
     device: auto
     accelerator: auto 
-    data_dir:  /home/ahmad/ahmad_experiments/retinal_data/Dataset_SPIE
+    data_dir:  /work/wilms_lab/ahmad/Dataset_SPIE
     image_extension: png
-    num_workers: 16 
-    model_ckpt_path: /home/ahmad/ahmad_experiments/retinal_cond_diff/Cond_Diff/DDPM/epoch=38-step=22425.ckpt
-    sample_image_dir: Conditional_DDIM_samples_epoch_38
+    num_workers: 1
+    model_ckpt_path: /home/ahmad.omarahsan/retinal_cond_diff/epoch=161-step=82134.ckpt
+    sample_image_dir: 161_epoch_samples
     log_every_n_steps: 10
     save_top_k: 20
     denoised_img_dir: encode_denoised_DDIM_DDIM_intermediates_800
@@ -18,9 +18,9 @@ exp:
 hparams:
     restore_ckpt:
     seed: 0
-    batch_size: 3
+    batch_size: 8
     min_epochs: 1
-    max_epochs: 100
+    max_epochs: 1
     num_sanity_val_steps: 1
     number_of_samples: 20
 
