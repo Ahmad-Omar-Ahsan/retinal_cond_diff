@@ -61,16 +61,16 @@ def load_model(config: dict) -> nn.Module:
     Returns:
         nn.Module: Model
     """
-    if 'DiffusionModelUnet' in config['hparams']:
-        model = DiffusionModelUNet(
-            spatial_dims=config['hparams']['DiffusionModelUnet']['spatial_dims'],
-            in_channels=config['hparams']['DiffusionModelUnet']['in_channels'],
-            out_channels=config['hparams']['DiffusionModelUnet']['out_channels'],
-            num_channels=config['hparams']['DiffusionModelUnet']['num_channels'],
-            attention_levels=config['hparams']['DiffusionModelUnet']['attention_levels'],
-            num_res_blocks=config['hparams']['DiffusionModelUnet']['num_res_blocks'],
-            num_head_channels=config['hparams']['DiffusionModelUnet']['num_head_channels'],
-            num_class_embeds=config['hparams']['DiffusionModelUnet']['num_class_embeds']
-        )
+    # if 'DiffusionModelUnet' in config['hparams']:
+    #     model = DiffusionModelUNet(
+    #         spatial_dims=config['hparams']['DiffusionModelUnet']['spatial_dims'],
+    #         in_channels=config['hparams']['DiffusionModelUnet']['in_channels'],
+    #         out_channels=config['hparams']['DiffusionModelUnet']['out_channels'],
+    #         num_channels=config['hparams']['DiffusionModelUnet']['num_channels'],
+    #         attention_levels=config['hparams']['DiffusionModelUnet']['attention_levels'],
+    #         num_res_blocks=config['hparams']['DiffusionModelUnet']['num_res_blocks'],
+    #         num_head_channels=config['hparams']['DiffusionModelUnet']['num_head_channels'],
+    #         num_class_embeds=config['hparams']['DiffusionModelUnet']['num_class_embeds']
+    #     )
     model = load_model_ckpt(model_ckpt_path=config['exp']['model_ckpt_path'],config=config)
     return model
