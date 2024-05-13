@@ -40,13 +40,7 @@ def load_model_ckpt(model_ckpt_path: str, config: dict) -> nn.Module:
     elif config['hparams']['pretrained_scheduler_type'] =='DDPM_DDIM':
         l_module = LightningDDPMDDIM_monai.load_from_checkpoint(model_ckpt_path)
     elif config['hparams']['pretrained_scheduler_type'] == 'conditional_DDPM':
-        checkpoint = torch.load(model_ckpt_path)
-        unet_weights = {k:v for k,v in checkpoint['state_dict'].items() if k.startswith('model')}
-        unet_weights = {k.replace('model.',''):v for k,v in unet_weights.items()}
-        l_module = LightningDDPMDDIM_monai.load_from_checkpoint("/home/ahmad/ahmad_experiments/retinal_cond_diff/epoch=161-step=82134.ckpt")
-        pl_module = Pretrained_LightningDDPM_monai(config=config, model=l_module.model)
-        pl_module.model.load_state_dict(unet_weights)
-        return pl_module.model
+        l_module = Pretrained_LightningDDPM_monai.load_from_checkpoint(model_ckpt_path, config=config)
         # l_module.model.load_state_dict(unet_weights)
     
     return l_module.model

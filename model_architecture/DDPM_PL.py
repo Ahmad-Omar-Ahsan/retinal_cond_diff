@@ -166,7 +166,7 @@ class LightningDDPM_monai(pl.LightningModule):
 
 
 class Pretrained_LightningDDPM_monai(pl.LightningModule):
-    def __init__(self, config, unet_weights):
+    def __init__(self, config):
         super().__init__()
         self.config=config
 
@@ -188,7 +188,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
         )
 
-        self.model.load_state_dict(unet_weights, strict=False)
+        # self.model.load_state_dict(unet_weights, strict=False)
         # if config['hparams']['scheduler_type'] == 'DDPM':
         self.scheduler = DDPMScheduler(
             num_train_timesteps=config['hparams']['DDPMScheduler']['num_train_timesteps'],
