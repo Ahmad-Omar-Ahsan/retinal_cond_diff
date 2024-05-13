@@ -256,7 +256,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         avg_loss = torch.stack([x["val_loss"] for x in flat_outputs]).mean()
         labels = torch.arange(6).to(self.device)
         current_epoch = self.current_epoch + 1
-        if current_epoch % 1 == 0:
+        if current_epoch % 5 == 0:
             print(f'On validation epoch:{self.current_epoch} end\n')
             noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
             noise = torch.repeat_interleave(noise,6,dim=0)
