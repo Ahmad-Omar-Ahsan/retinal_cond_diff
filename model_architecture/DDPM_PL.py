@@ -166,11 +166,29 @@ class LightningDDPM_monai(pl.LightningModule):
 
 
 class Pretrained_LightningDDPM_monai(pl.LightningModule):
-    def __init__(self, config, model):
+    def __init__(self, config, unet_weights):
         super().__init__()
         self.config=config
 
-        self.model = model
+        self.model = DiffusionModelUNet(
+            spatial_dims=config['hparams']['DiffusionModelUnet']['spatial_dims'],
+            in_channels=config['hparams']['DiffusionModelUnet']['in_channels'],
+            out_channels=config['hparams']['DiffusionModelUnet']['out_channels'],
+            num_res_blocks=config['hparams']['DiffusionModelUnet']['num_res_blocks'],
+            num_channels=config['hparams']['DiffusionModelUnet']['num_channels'],
+            attention_levels=config['hparams']['DiffusionModelUnet']['attention_levels'],
+            norm_num_groups=config['hparams']['DiffusionModelUnet']['norm_num_groups'],
+            resblock_updown=config['hparams']['DiffusionModelUnet']['resblock_updown'],
+            num_head_channels=config['hparams']['DiffusionModelUnet']['num_head_channels'],
+            with_conditioning=config['hparams']['DiffusionModelUnet']['with_conditioning'],
+            transformer_num_layers=config['hparams']['DiffusionModelUnet']['transformer_num_layers'],
+            num_class_embeds=config['hparams']['DiffusionModelUnet']['num_class_embeds'],
+            upcast_attention=config['hparams']['DiffusionModelUnet']['upcast_attention'],
+            use_flash_attention=config['hparams']['DiffusionModelUnet']['use_flash_attention'],
+
+        )
+
+        self.model.load_state_dict(unet_weights, strict=False)
         # if config['hparams']['scheduler_type'] == 'DDPM':
         self.scheduler = DDPMScheduler(
             num_train_timesteps=config['hparams']['DDPMScheduler']['num_train_timesteps'],
@@ -179,7 +197,13 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             clip_sample=config['hparams']['DDPMScheduler']['clip_sample'],
             prediction_type=config['hparams']['DDPMScheduler']['prediction_type']
         )
-       
+        self.scheduler_DDIM = DDIMScheduler(
+            num_train_timesteps=config['hparams']['DDIMScheduler']['num_train_timesteps'],
+            schedule=config['hparams']['DDIMScheduler']['schedule'],
+            clip_sample=config['hparams']['DDIMScheduler']['clip_sample'],
+            set_alpha_to_one=config['hparams']['DDIMScheduler']['set_alpha_to_one'],
+            prediction_type=config['hparams']['DDIMScheduler']['prediction_type']
+        )
         self.num_inference_timesteps = config['hparams']['num_inference_timesteps']
         self.inferer = FlexibleConditionalDiffusionInferer(
             scheduler=self.scheduler
@@ -192,7 +216,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.outputs = defaultdict(list)
         self.batches=[]
 
-        self.save_hyperparameters(ignore=['model'])
+        self.save_hyperparameters(ignore="unet_weights")
         print("Initialized")
         
 
@@ -230,17 +254,22 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             flat_outputs.extend(lst)
 
         avg_loss = torch.stack([x["val_loss"] for x in flat_outputs]).mean()
-        labels = torch.arange(6)
+        labels = torch.arange(6).to(self.device)
         current_epoch = self.current_epoch + 1
-        # with autocast(enabled=True):
-        if current_epoch % 5 == 0:
+        if current_epoch % 1 == 0:
             print(f'On validation epoch:{self.current_epoch} end\n')
             noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
             noise = torch.repeat_interleave(noise,6,dim=0)
             self.scheduler.set_timesteps(num_inference_steps=self.num_inference_timesteps)
             images = self.inferer.sample(input_noise=noise, diffusion_model=self.model, scheduler=self.scheduler, conditioning=labels)
             grid = make_grid(images, nrow=6)
-            self.logger.experiment.add_image(f"Generated retinal image in validation epoch end", grid, current_epoch)
+            self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDPM", grid, current_epoch)
+
+            self.scheduler_DDIM.set_timesteps(num_inference_steps=self.num_inference_timesteps)
+            images = self.inferer.sample(input_noise=noise, diffusion_model=self.model, scheduler=self.scheduler_DDIM, conditioning=labels)
+            grid = make_grid(images, nrow=6)
+            self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDIM", grid, current_epoch)
+
         self.log("validation_loss_epoch_end", avg_loss, prog_bar=True)
 
         self.outputs.clear()
