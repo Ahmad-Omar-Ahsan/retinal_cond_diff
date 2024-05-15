@@ -36,7 +36,7 @@ def pipeline(config):
         sample_images = []
         noise = torch.randn((1, in_channels , image_h, image_w)).to('cuda')
         noise = torch.repeat_interleave(noise,6,dim=0)
-        labels = torch.arange(6)
+        labels = torch.arange(6).to('cuda')
 
         for j in range(len(schedulers)):
             with autocast(enabled=True):

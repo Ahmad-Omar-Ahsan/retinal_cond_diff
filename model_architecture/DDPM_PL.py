@@ -9,6 +9,7 @@ from generative.networks.schedulers import DDPMScheduler, DDIMScheduler
 from torchvision.utils import make_grid
 import torch.nn.functional as F
 from torch.cuda.amp import  autocast
+from tqdm import tqdm
 import numpy as np
 from .Custom_Inferer import FlexibleConditionalDiffusionInferer
 torch.set_float32_matmul_precision('medium')
@@ -79,8 +80,7 @@ class LightningDDPM_monai(pl.LightningModule):
         self.image_h = config['hparams']['image_h']
         self.image_w = config['hparams']['image_w']
         self.outputs = defaultdict(list)
-        self.batches=[]
-
+        self.batches = []
         self.save_hyperparameters()
         
 
@@ -187,9 +187,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             use_flash_attention=config['hparams']['DiffusionModelUnet']['use_flash_attention'],
 
         )
+        
 
-        # self.model.load_state_dict(unet_weights, strict=False)
-        # if config['hparams']['scheduler_type'] == 'DDPM':
         self.scheduler = DDPMScheduler(
             num_train_timesteps=config['hparams']['DDPMScheduler']['num_train_timesteps'],
             schedule=config['hparams']['DDPMScheduler']['schedule'],
@@ -214,7 +213,15 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.image_h = config['hparams']['image_h']
         self.image_w = config['hparams']['image_w']
         self.outputs = defaultdict(list)
-        self.batches=[]
+        self.batches = []  
+        self.num_classes = config['hparams']['DiffusionModelUnet']['num_class_embeds']
+        self.classes = torch.arange(self.num_classes)
+
+        noise = torch.randn((1, self.in_channels , self.image_h, self.image_w))
+        noise = torch.repeat_interleave(noise,self.num_classes,dim=0)
+        self.noise = noise
+        self.runs = config['hparams']['runs']
+        # self.errors_index = 
 
         self.save_hyperparameters(ignore="unet_weights")
         print("Initialized")
@@ -256,17 +263,17 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         avg_loss = torch.stack([x["val_loss"] for x in flat_outputs]).mean()
         labels = torch.arange(6).to(self.device)
         current_epoch = self.current_epoch + 1
-        if current_epoch % 5 == 0:
+        self.noise = self.noise.to(self.device)
+        if current_epoch % self.config['hparams']['validation_sample_inspect_epoch'] == 0:
             print(f'On validation epoch:{self.current_epoch} end\n')
-            noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
-            noise = torch.repeat_interleave(noise,6,dim=0)
+            
             self.scheduler.set_timesteps(num_inference_steps=self.num_inference_timesteps)
-            images = self.inferer.sample(input_noise=noise, diffusion_model=self.model, scheduler=self.scheduler, conditioning=labels)
+            images = self.inferer.sample(input_noise=self.noise, diffusion_model=self.model, scheduler=self.scheduler, conditioning=labels)
             grid = make_grid(images, nrow=6)
             self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDPM", grid, current_epoch)
 
             self.scheduler_DDIM.set_timesteps(num_inference_steps=self.num_inference_timesteps)
-            images = self.inferer.sample(input_noise=noise, diffusion_model=self.model, scheduler=self.scheduler_DDIM, conditioning=labels)
+            images = self.inferer.sample(input_noise=self.noise, diffusion_model=self.model, scheduler=self.scheduler_DDIM, conditioning=labels)
             grid = make_grid(images, nrow=6)
             self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDIM", grid, current_epoch)
 
@@ -274,7 +281,45 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
         self.outputs.clear()
     
-   
+    def predict_step(self,batch):
+        accuracy = []
+        class_errors = torch.empty((self.num_classes,1)).to(self.device)
+        classes = self.classes.to(self.device)
+        for sample in batch:
+            test_image, test_label = sample[0], sample[1]
+            test_image = torch.unsqueeze(test_image, dim=0)
+            test_image_allclass = torch.repeat_interleave(test_image, self.num_classes, dim=0)
+            test_image_allclass = test_image_allclass.to(self.device)
+            
+            
+            
+
+            for r in tqdm(range(self.runs)):
+                timesteps = torch.randint(0, self.scheduler.num_train_timesteps,(1,),device=self.device).long()#*0+timesteps_pre[0]
+                timesteps=torch.repeat_interleave(timesteps,self.num_classes,dim=0)
+
+                noise = torch.randn((1, self.in_channels , self.image_h, self.image_w))
+                noise = torch.repeat_interleave(noise,self.num_classes,dim=0)
+                noise_allclass = self.noise.to(self.device)
+                
+                output = self.inferer(inputs=test_image_allclass, diffusion_model=self.model, noise=noise_allclass, timesteps=timesteps, conditioning=classes)
+                error = self.criterion(noise_allclass, output,reduction='none').mean(dim=(1,2,3)).view(-1, 1).to(self.device)
+                
+                class_errors = torch.concat([class_errors, error], dim=1)
+                    
+
+            mean_error_classes = torch.mean(class_errors, dim=1)
+            min_error_index = torch.argmin(mean_error_classes, dim=1, keepdim=True) 
+            
+            acc = torch.sum(min_error_index == test_label) / test_label.shape[0]
+            accuracy.append(acc)
+
+        list_of_acc = torch.tensor(accuracy, dtype=torch.float)
+        classification_acc = torch.mean(list_of_acc)
+        self.log("Test accuracy", classification_acc)
+        print(f"Classification accuracy: {classification_acc}")
+
+
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)

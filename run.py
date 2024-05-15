@@ -1,6 +1,5 @@
 import os
 import pytorch_lightning as pl
-import torch
 from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
@@ -48,7 +47,9 @@ def pipeline(config):
         # Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai(config=config, unet_weights=unet_weights)
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.fit(model=Pretrained_DDPM_lightning, datamodule=dm)
-
+    elif config['exp']['training_type'] == 'test':
+        Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai(config=config)
+        trainer.predict(model=Pretrained_DDPM_lightning, datamodule=dm)
     # model = load_model(config=config)
     # DDPM_lightning = Pretrained_LightningDDPM_monai(config=config,model=model)
     
