@@ -222,6 +222,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.noise = noise
         self.runs = config['hparams']['runs']
         # self.errors_index = 
+        self.test_outputs = []
 
         self.save_hyperparameters(ignore="unet_weights")
         print("Initialized")
@@ -281,44 +282,56 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
         self.outputs.clear()
     
-    def predict_step(self,batch):
+    def predict_step(self,batch,dataloader_idx=0):
         accuracy = []
         class_errors = torch.empty((self.num_classes,1)).to(self.device)
         classes = self.classes.to(self.device)
-        for sample in batch:
-            test_image, test_label = sample[0], sample[1]
-            test_image = torch.unsqueeze(test_image, dim=0)
-            test_image_allclass = torch.repeat_interleave(test_image, self.num_classes, dim=0)
-            test_image_allclass = test_image_allclass.to(self.device)
+        image_list = batch[0]
+        label_list = batch[1]
+        for test_image, test_label in zip(image_list, label_list):
+            test_image = torch.unsqueeze(test_image, dim=0).to(self.device)
+            # test_image_allclass = torch.repeat_interleave(test_image, self.num_classes, dim=0)
+            # test_image_allclass = test_image_allclass
             
-            
+            error = torch.empty_like(class_errors)
             
 
-            for r in tqdm(range(self.runs)):
-                timesteps = torch.randint(0, self.scheduler.num_train_timesteps,(1,),device=self.device).long()#*0+timesteps_pre[0]
-                timesteps=torch.repeat_interleave(timesteps,self.num_classes,dim=0)
+            for r in range(self.runs):
+                timesteps = torch.randint(0, self.scheduler.num_train_timesteps,(1,),device=self.device).long()
+                # timesteps=torch.repeat_interleave(timesteps,self.num_classes,dim=0)
 
-                noise = torch.randn((1, self.in_channels , self.image_h, self.image_w))
-                noise = torch.repeat_interleave(noise,self.num_classes,dim=0)
-                noise_allclass = self.noise.to(self.device)
-                
-                output = self.inferer(inputs=test_image_allclass, diffusion_model=self.model, noise=noise_allclass, timesteps=timesteps, conditioning=classes)
-                error = self.criterion(noise_allclass, output,reduction='none').mean(dim=(1,2,3)).view(-1, 1).to(self.device)
+                noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
+                # noise = torch.repeat_interleave(noise,self.num_classes,dim=0)
+               
+                for c, conditions in enumerate(classes):
+                    output = self.inferer(inputs=test_image, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=conditions)
+                    error[c] = self.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1, 1).to(self.device)
                 
                 class_errors = torch.concat([class_errors, error], dim=1)
                     
 
             mean_error_classes = torch.mean(class_errors, dim=1)
-            min_error_index = torch.argmin(mean_error_classes, dim=1, keepdim=True) 
+            min_error_index = torch.argmin(mean_error_classes, dim=0, keepdim=False) 
             
-            acc = torch.sum(min_error_index == test_label) / test_label.shape[0]
-            accuracy.append(acc)
+            accuracy.append((min_error_index == test_label).float())
+        # accuracy = torch.mean(accuracy)
+        # accuracy = torch.any()
+        accuracy = torch.tensor(accuracy)
+        classification_acc = torch.mean(accuracy)
+        # self.log("Test accuracy", classification_acc)
+        # self.test_outputs[dataloader_idx].append({"preds": 100*classification_acc})
+        self.test_outputs.append(100*classification_acc)
 
-        list_of_acc = torch.tensor(accuracy, dtype=torch.float)
-        classification_acc = torch.mean(list_of_acc)
-        self.log("Test accuracy", classification_acc)
-        print(f"Classification accuracy: {classification_acc}")
 
+    def on_predict_epoch_end(self):
+
+
+
+        class_score = torch.tensor(self.test_outputs)
+        score = torch.mean(class_score)
+        print(f"Classification score : {score.item()}%")
+
+        self.test_outputs.clear()
 
 
     def configure_optimizers(self):

@@ -3,7 +3,7 @@ import pytorch_lightning as pl
 from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
-
+import torch
 from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning, load_model
 from model_architecture import LightningDDPM_monai, LightningDDIM_monai, LightningDDPMDDIM_monai, Pretrained_LightningDDPM_monai,Conditional_DDIM_monai
 from generative.networks.nets import DiffusionModelUNet
@@ -41,17 +41,11 @@ def pipeline(config):
         DDIM_lightning = Conditional_DDIM_monai(config=config)
         trainer.fit(model=DDIM_lightning, datamodule=dm)
     elif config['exp']['training_type'] == 'pretrained':
-        # checkpoint = torch.load(config['exp']['model_ckpt_path'])
-        # unet_weights = {k:v for k,v in checkpoint['state_dict'].items() if k.startswith('model')}
-        # unet_weights = {k.replace('model.',''):v for k,v in unet_weights.items()}
-        # Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai(config=config, unet_weights=unet_weights)
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.fit(model=Pretrained_DDPM_lightning, datamodule=dm)
     elif config['exp']['training_type'] == 'test':
-        Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai(config=config)
+        Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.predict(model=Pretrained_DDPM_lightning, datamodule=dm)
-    # model = load_model(config=config)
-    # DDPM_lightning = Pretrained_LightningDDPM_monai(config=config,model=model)
     
     
 
