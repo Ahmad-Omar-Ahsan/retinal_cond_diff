@@ -223,7 +223,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.runs = config['hparams']['runs']
         # self.errors_index = 
         self.test_outputs = []
-
+        self.class_acc = []
         self.save_hyperparameters(ignore="unet_weights")
         print("Initialized")
         
@@ -314,6 +314,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             min_error_index = torch.argmin(mean_error_classes, dim=0, keepdim=False) 
             
             accuracy.append((min_error_index == test_label).float())
+            self.class_acc.append([min_error_index, test_label])
         # accuracy = torch.mean(accuracy)
         # accuracy = torch.any()
         accuracy = torch.tensor(accuracy)
@@ -331,7 +332,36 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         score = torch.mean(class_score)
         print(f"Classification score : {score.item()}%")
 
+        mapping = {
+            0 : "AMD",
+            1: "Cataract",
+            2: "DR",
+            3 : "Myopia",
+            4 : "Glaucoma",
+            5 : "Normal"
+        }
         self.test_outputs.clear()
+        class_scores = {}
+        label_count = {}
+        for scores in self.class_acc:
+            label = scores[1].item()
+            prediction = scores[0].item()
+            if label == prediction:
+                class_scores[label] = class_scores.get(label, 0) + 1
+            label_count[label] = label_count.get(label,0) + 1
+        
+        class_scores = dict(sorted(class_scores.items()))
+        label_count = dict(sorted(label_count.items()))
+        print(class_scores, label_count)
+        for key1, key2 in zip(class_scores, label_count):
+            correct = class_scores[key1]
+            count = label_count[key2]
+
+            class_accuracy = 100 * (correct / count)
+            print(f"For {mapping[key1]} accuracy is: {class_accuracy}")
+        
+        self.class_acc.clear()
+
 
 
     def configure_optimizers(self):
