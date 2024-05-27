@@ -6,6 +6,7 @@ from collections import defaultdict
 import torch
 from utils import get_config,  seed_everything, Retinal_Cond_Lightning
 from model_architecture import  Pretrained_LightningDDPM_monai
+from torchvision.utils import save_image
 
 def predict_display(test_set, timesteps, module):
     with torch.inference_mode():
@@ -39,8 +40,8 @@ def predict_display(test_set, timesteps, module):
                 min_error = torch.argmin(error, dim=0, keepdim=False).item()
                 output_min_error[r.item()].append(min_error)
             
-                    
-            print(output_min_error)
+            save_image(test_image,fp=f'test_images/label_{test_label}_{test_index}.png')     
+            # print(output_min_error)
             # mean_error_classes = torch.mean(class_errors, dim=1)
             # min_error_index = torch.argmin(mean_error_classes, dim=0, keepdim=False) 
             
