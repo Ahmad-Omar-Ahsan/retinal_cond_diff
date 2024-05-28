@@ -45,7 +45,7 @@ def pipeline(config):
         trainer.fit(model=Pretrained_DDPM_lightning, datamodule=dm)
     elif config['exp']['training_type'] == 'test':
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
-        trainer.predict(model=Pretrained_DDPM_lightning, datamodule=dm)
+        trainer.test(model=Pretrained_DDPM_lightning, datamodule=dm)
     
     
 

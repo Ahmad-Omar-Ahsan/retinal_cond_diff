@@ -283,7 +283,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
         self.outputs.clear()
     
-    def predict_step(self,batch,dataloader_idx=0):
+    def test_step(self,batch,dataloader_idx=0):
         accuracy = []
         class_errors = torch.empty((self.num_classes,1)).to(self.device)
         classes = self.classes.to(self.device)
@@ -327,22 +327,22 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.test_outputs.append(100*classification_acc)
 
 
-    def on_predict_epoch_end(self):
+    def on_test_epoch_end(self):
 
 
 
         class_score = torch.tensor(self.test_outputs)
         score = torch.mean(class_score)
         print(f"Classification score : {score.item()}%")
-        # self.log("Test accuracy", score)
+        self.log("Test accuracy", score)
 
         mapping = {
-            0 : "AMD",
-            1: "Cataract",
-            2: "DR",
-            3 : "Myopia",
-            4 : "Glaucoma",
-            5 : "Normal"
+            '0' : "AMD",
+            '1': "Cataract",
+            '2': "DR",
+            '3' : "Myopia",
+            '4' : "Glaucoma",
+            '5' : "Normal"
         }
         self.test_outputs.clear()
         class_scores = {}
@@ -351,20 +351,22 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             label = scores[1].item()
             prediction = scores[0].item()
             if label == prediction:
-                class_scores[label] = class_scores.get(label, 0) + 1
-            label_count[label] = label_count.get(label,0) + 1
+                class_scores[str(label)] = class_scores.get(str(label), 0) + 1
+            label_count[str(label)] = label_count.get(str(label),0) + 1
         
         class_scores = dict(sorted(class_scores.items()))
         label_count = dict(sorted(label_count.items()))
+        class_acc_dict = {}
         print(class_scores, label_count)
         for key1, key2 in zip(class_scores, label_count):
             correct = class_scores[key1]
             count = label_count[key2]
 
             class_accuracy = 100 * (correct / count)
+            class_acc_dict[key1] = class_accuracy
             print(f"For {mapping[key1]} accuracy is: {class_accuracy}")
-        # self.log_dict("Class scores", class_scores)
-        # self.log_dict("Label count", label_count)
+        self.log_dict(class_acc_dict)
+        # self.log_dict(label_count)
         self.class_acc.clear()
 
 
