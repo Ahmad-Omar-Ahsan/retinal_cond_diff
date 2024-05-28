@@ -225,6 +225,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.test_outputs = []
         self.class_acc = []
         self.save_hyperparameters(ignore="unet_weights")
+        self.batch_size = config['hparams']['batch_size']
         print("Initialized")
         
 
@@ -290,7 +291,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         label_list = batch[1]
         for test_image, test_label in zip(image_list, label_list):
             test_image = torch.unsqueeze(test_image, dim=0).to(self.device)
-            # test_image_allclass = torch.repeat_interleave(test_image, self.num_classes, dim=0)
+            test_image = torch.repeat_interleave(test_image, self.batch_size
+                                                 , dim=0)
             # test_image_allclass = test_image_allclass
             
             error = torch.empty_like(class_errors)
@@ -298,14 +300,15 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
             for r in range(self.runs):
                 timesteps = torch.randint(0, self.scheduler.num_train_timesteps,(1,),device=self.device).long()
-                # timesteps=torch.repeat_interleave(timesteps,self.num_classes,dim=0)
+                timesteps=torch.repeat_interleave(timesteps,self.batch_size,dim=0)
 
                 noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
-                # noise = torch.repeat_interleave(noise,self.num_classes,dim=0)
+                noise = torch.repeat_interleave(noise,self.batch_size,dim=0)
                
-                for c, conditions in enumerate(classes):
+                for c in range(0,len(classes), self.batch_size):
+                    conditions = classes[c: c+self.batch_size]
                     output = self.inferer(inputs=test_image, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=conditions)
-                    error[c] = self.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1, 1).to(self.device)
+                    error[c: c+self.batch_size] = self.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1, 1).to(self.device)
                 
                 class_errors = torch.concat([class_errors, error], dim=1)
                     
@@ -331,6 +334,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         class_score = torch.tensor(self.test_outputs)
         score = torch.mean(class_score)
         print(f"Classification score : {score.item()}%")
+        # self.log("Test accuracy", score)
 
         mapping = {
             0 : "AMD",
@@ -359,7 +363,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
             class_accuracy = 100 * (correct / count)
             print(f"For {mapping[key1]} accuracy is: {class_accuracy}")
-        
+        # self.log_dict("Class scores", class_scores)
+        # self.log_dict("Label count", label_count)
         self.class_acc.clear()
 
 
