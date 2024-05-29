@@ -8,6 +8,7 @@ from utils import get_config,  seed_everything, Retinal_Cond_Lightning
 from model_architecture import  Pretrained_LightningDDPM_monai
 from torchvision.utils import save_image
 import pandas as pd
+import copy
 
 def predict_display(test_set, timesteps, module, test_index_list):
     with torch.inference_mode():
@@ -21,16 +22,16 @@ def predict_display(test_set, timesteps, module, test_index_list):
                 # print('here')
                 continue
             class_errors = []
-            noise = torch.randn((1, module.in_channels , module.image_h, module.image_w)).to(module.device)
+            
             classes = torch.arange(module.num_classes).to(module.device)
             output_test_images = defaultdict(list)
             output_min_error = defaultdict(list)
             
             test_image = torch.unsqueeze(test_image, dim=0).to(module.device)
             
-            error = torch.zeros((6))
+            error = [0,0,0,0,0,0]
             
-            
+            noise = torch.randn((1, module.in_channels , module.image_h, module.image_w)).to(module.device)
             for r in timesteps:
                 time = r.reshape((1,)).to(module.device).long()
                 
@@ -39,24 +40,28 @@ def predict_display(test_set, timesteps, module, test_index_list):
                     
                     output = module.inferer(inputs=test_image, diffusion_model=module.model, noise=noise, timesteps=time, conditioning=conditions).to(module.device)
                     output_test_images[conditions.item()].append(noisy_image)
-                    error[c] = module.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1, 1).to(module.device)
+                    value = module.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1, 1).to(module.device)
+                    error[c] = value[0].item()
+                class_errors.append(copy.deepcopy(error))
                 
-                class_errors.append(error)
-                
-                min_error = torch.argmin(error, dim=0, keepdim=False).item()
+                min_error = torch.argmin(torch.tensor(error), dim=0, keepdim=False).item()
                 output_min_error[r.item()].append(min_error)
             
-            print(class_errors)
-            class_errors = torch.concat(class_errors, dim=1)
-            print(class_errors)
+            class_errors = torch.tensor(class_errors)
+            mean_class_error = torch.mean(class_errors,dim=0)
+            min_indexes = torch.argmin(mean_class_error)
+            # class_errors = torch.concat(class_errors, dim=1)
+            
             # save_image(test_image,fp=f'test_images/label_{test_label}_{test_index}.png')     
             print(f"For test index: {test_index} and test label: {test_label}")
             # print(class_errors)
             df = pd.DataFrame(class_errors.cpu().numpy())
-            df.columns = [0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900]
-            df.index = ["AMD", "Cataract", "DR", "Glaucoma", "Myopia", "Normal"]
+            df.index = [0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900]
+            df.columns = ["AMD", "Cataract", "DR", "Glaucoma", "Myopia", "Normal"]
             print(df)
-            print(output_min_error)
+            print(f"Index for each timestep: {output_min_error}")
+            print(f"Mean class error: {mean_class_error}")
+            print(f"Predicted class: {min_indexes.item()}")
             # mean_error_classes = torch.mean(class_errors, dim=1)
             # min_error_index = torch.argmin(mean_error_classes, dim=0, keepdim=False) 
             
