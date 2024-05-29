@@ -9,3 +9,4 @@ tutorial.ipynb
 *.png
 ukbb_wave.py
 conf.yaml
+*.pth
