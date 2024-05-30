@@ -320,8 +320,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             mean_error_classes = np.mean(np_class_errors, axis=0)
             min_error_index = np.argmin(mean_error_classes, axis=0) 
         
-        accuracy.append((min_error_index == test_label).float())
-        self.class_acc.append([min_error_index, test_label])
+            accuracy.append((min_error_index == test_label).float())
+            self.class_acc.append([min_error_index, test_label])
         # accuracy = torch.mean(accuracy)
         # accuracy = torch.any()
         accuracy = torch.tensor(accuracy)
