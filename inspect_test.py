@@ -10,6 +10,93 @@ from torchvision.utils import save_image
 import pandas as pd
 import copy
 
+
+def predict(test_set, module):
+    with torch.inference_mode():
+        accuracy = []
+        class_errors = []
+        classes = module.classes.to(module.device)
+        class_acc = []
+        test_outputs = []
+
+        for test_image, test_label in tqdm(test_set):
+            
+            test_image = torch.unsqueeze(test_image, dim=0).to(module.device)
+            test_image = torch.repeat_interleave(test_image, module.batch_size
+                                                    , dim=0)
+            # test_image_allclass = test_image_allclass
+            
+            # error = np.arange(self.num_classes) * 0
+            error = [0,0,0,0,0,0]
+            
+
+            for r in range(module.runs):
+                timesteps = torch.randint(0, module.scheduler.num_train_timesteps,(1,),device=module.device).long()
+                timesteps=torch.repeat_interleave(timesteps,module.batch_size,dim=0)
+
+                noise = torch.randn((1, module.in_channels , module.image_h, module.image_w)).to(module.device)
+                noise = torch.repeat_interleave(noise,module.batch_size,dim=0)
+                
+                for c in range(0,len(classes), module.batch_size):
+                    conditions = classes[c: c+module.batch_size]
+                    output = module.inferer(inputs=test_image, diffusion_model=module.model, noise=noise, timesteps=timesteps, conditioning=conditions)
+                    value = module.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1).to(module.device)
+                    error[c: c+module.batch_size] = value.cpu().numpy()
+                
+                class_errors.append(copy.deepcopy(error))
+        
+            
+            np_class_errors = np.array(class_errors)
+            mean_error_classes = np.mean(np_class_errors, axis=0)
+            min_error_index = np.argmin(mean_error_classes, axis=0) 
+        
+            accuracy.append((min_error_index == test_label).float())
+            class_acc.append([min_error_index, test_label])
+        # accuracy = torch.mean(accuracy)
+        # accuracy = torch.any()
+        accuracy = torch.tensor(accuracy)
+        classification_acc = torch.mean(accuracy)
+        # self.log("Test accuracy", classification_acc)
+        # self.test_outputs[dataloader_idx].append({"preds": 100*classification_acc})
+        test_outputs.append(100*classification_acc)
+
+
+        class_score = torch.tensor(test_outputs)
+        score = torch.mean(class_score)
+        print(f"Classification score : {score.item()}%")
+        
+
+        mapping = {
+            '0' : "AMD",
+            '1': "Cataract",
+            '2': "DR",
+            '3' : "Myopia",
+            '4' : "Glaucoma",
+            '5' : "Normal"
+        }
+        
+        class_scores = {}
+        label_count = {}
+        for scores in class_acc:
+            label = scores[1].item()
+            prediction = scores[0].item()
+            if label == prediction:
+                class_scores[str(label)] = class_scores.get(str(label), 0) + 1
+            label_count[str(label)] = label_count.get(str(label),0) + 1
+        
+        class_scores = dict(sorted(class_scores.items()))
+        label_count = dict(sorted(label_count.items()))
+        class_acc_dict = {}
+        print(class_scores, label_count)
+        for key1, key2 in zip(class_scores, label_count):
+            correct = class_scores[key1]
+            count = label_count[key2]
+
+            class_accuracy = 100 * (correct / count)
+            class_acc_dict[key1] = class_accuracy
+            print(f"For {mapping[key1]} accuracy is: {class_accuracy}")
+        
+
 def predict_display(test_set, timesteps, module, test_index_list):
     with torch.inference_mode():
         # accuracy = []
@@ -99,44 +186,72 @@ def main():
     module_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
     t = torch.tensor([0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900],dtype=torch.float)
 
-    test_set = dm.test
+    # test_set = dm.test
 
-    amd = []
-    cataract = []
-    dr = []
-    glaucoma = []
-    myopia = []
-    normal = []
-    count_amd, count_cataract, count_dr, count_glaucoma, count_myopia, count_normal = 0,0,0,0,0,0
-    amount_of_images = 5
+    # amd = []
+    # cataract = []
+    # dr = []
+    # glaucoma = []
+    # myopia = []
+    # normal = []
+    # count_amd, count_cataract, count_dr, count_glaucoma, count_myopia, count_normal = 0,0,0,0,0,0
+    # amount_of_images = 50
 
-    for image, label in test_set:
-        if label == 0 and count_amd != amount_of_images:
-            amd.append([image, label])
-            count_amd += 1
-        elif label == 1 and count_cataract != amount_of_images:
-            cataract.append([image, label])
-            count_cataract += 1
-        elif label == 2 and count_dr != amount_of_images:
-            dr.append([image, label])
-            count_dr += 1
-        elif label == 3 and count_glaucoma != amount_of_images:
-            glaucoma.append([image, label])
-            count_glaucoma += 1
-        elif label == 4 and count_myopia != amount_of_images:
-            myopia.append([image, label])
-            count_myopia += 1
-        elif label == 5 and count_normal != amount_of_images:
-            normal.append([image, label])
-            count_normal += 1
+    # for image, label in test_set:
+    #     if label == 0 and count_amd != amount_of_images:
+    #         amd.append([image, label])
+    #         count_amd += 1
+    #     elif label == 1 and count_cataract != amount_of_images:
+    #         cataract.append([image, label])
+    #         count_cataract += 1
+    #     elif label == 2 and count_dr != amount_of_images:
+    #         dr.append([image, label])
+    #         count_dr += 1
+    #     elif label == 3 and count_glaucoma != amount_of_images:
+    #         glaucoma.append([image, label])
+    #         count_glaucoma += 1
+    #     elif label == 4 and count_myopia != amount_of_images:
+    #         myopia.append([image, label])
+    #         count_myopia += 1
+    #     elif label == 5 and count_normal != amount_of_images:
+    #         normal.append([image, label])
+    #         count_normal += 1
     
 
-    predict_display(amd, timesteps=t, module=module_lightning, test_index_list=[2,3])
-    predict_display(cataract, timesteps=t, module=module_lightning, test_index_list=[6])
-    predict_display(dr, timesteps=t, module=module_lightning, test_index_list=[3])
-    predict_display(glaucoma, timesteps=t, module=module_lightning, test_index_list=[2])
-    predict_display(myopia, timesteps=t, module=module_lightning, test_index_list=[7])
-    predict_display(normal, timesteps=t, module=module_lightning, test_index_list=[4])
+    # predict_display(amd, timesteps=t, module=module_lightning, test_index_list=[2,3])
+    # predict_display(cataract, timesteps=t, module=module_lightning, test_index_list=[6])
+    # predict_display(dr, timesteps=t, module=module_lightning, test_index_list=[3])
+    # predict_display(glaucoma, timesteps=t, module=module_lightning, test_index_list=[2])
+    # predict_display(myopia, timesteps=t, module=module_lightning, test_index_list=[7])
+    # predict_display(normal, timesteps=t, module=module_lightning, test_index_list=[4])
+
+    count_amd, count_cataract, count_dr, count_glaucoma, count_myopia, count_normal = 0,0,0,0,0,0
+    amount_of_images = 50
+    pseudo_train_set = []
+    train_set = dm.train
+
+    for image, label in train_set:
+        if label == 0 and count_amd != amount_of_images:
+            pseudo_train_set.append([image, label])
+            count_amd += 1
+        elif label == 1 and count_cataract != amount_of_images:
+            pseudo_train_set.append([image, label])
+            count_cataract += 1
+        elif label == 2 and count_dr != amount_of_images:
+            pseudo_train_set.append([image, label])
+            count_dr += 1
+        elif label == 3 and count_glaucoma != amount_of_images:
+            pseudo_train_set.append([image, label])
+            count_glaucoma += 1
+        elif label == 4 and count_myopia != amount_of_images:
+            pseudo_train_set.append([image, label])
+            count_myopia += 1
+        elif label == 5 and count_normal != amount_of_images:
+            pseudo_train_set.append([image, label])
+            count_normal += 1
+            
+    predict(pseudo_train_set,  module=module_lightning)
+    
 
 
 
