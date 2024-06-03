@@ -14,13 +14,14 @@ import copy
 def predict(test_set, module):
     with torch.inference_mode():
         accuracy = []
-        class_errors = []
+        
         classes = module.classes.to(module.device)
         class_acc = []
         test_outputs = []
-
+        test_index = 0
         for test_image, test_label in tqdm(test_set):
-            
+            class_errors = []
+            test_index += 1
             test_image = torch.unsqueeze(test_image, dim=0).to(module.device)
             test_image = torch.repeat_interleave(test_image, module.batch_size
                                                     , dim=0)
@@ -28,7 +29,7 @@ def predict(test_set, module):
             
             # error = np.arange(self.num_classes) * 0
             error = [0,0,0,0,0,0]
-            
+            output_min_error = defaultdict(list)
 
             for r in range(module.runs):
                 timesteps = torch.randint(0, module.scheduler.num_train_timesteps,(1,),device=module.device).long()
@@ -44,6 +45,8 @@ def predict(test_set, module):
                     error[c: c+module.batch_size] = value.cpu().numpy()
                 
                 class_errors.append(copy.deepcopy(error))
+                min_error = torch.argmin(torch.tensor(error), dim=0, keepdim=False).item()
+                output_min_error[r].append(min_error)
         
             
             np_class_errors = np.array(class_errors)
@@ -52,6 +55,17 @@ def predict(test_set, module):
         
             accuracy.append((min_error_index == test_label).astype('float'))
             class_acc.append([min_error_index, test_label])
+
+            # save_image(test_image,fp=f'test_images/label_{test_label}_{test_index}.png')     
+            print(f"For test index: {test_index} and test label: {test_label}")
+            # print(class_errors)
+            df = pd.DataFrame(class_errors)
+            # df.index = [0, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900]
+            df.columns = ["AMD", "Cataract", "DR", "Glaucoma", "Myopia", "Normal"]
+            print(df)
+            print(f"Index for each timestep: {output_min_error}")
+            print(f"Mean class error: {mean_error_classes}")
+            print(f"Predicted class: {min_error_index}")
         # accuracy = torch.mean(accuracy)
         # accuracy = torch.any()
         accuracy = torch.tensor(accuracy)
@@ -88,6 +102,8 @@ def predict(test_set, module):
         label_count = dict(sorted(label_count.items()))
         class_acc_dict = {}
         print(class_scores, label_count)
+
+        
         for key1, key2 in zip(class_scores, label_count):
             correct = class_scores[key1]
             count = label_count[key2]
@@ -226,7 +242,7 @@ def main():
     # predict_display(normal, timesteps=t, module=module_lightning, test_index_list=[4])
 
     count_amd, count_cataract, count_dr, count_glaucoma, count_myopia, count_normal = 0,0,0,0,0,0
-    amount_of_images = 10
+    amount_of_images = 50
     pseudo_train_set = []
     train_set = dm.train
 

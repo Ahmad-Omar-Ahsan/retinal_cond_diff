@@ -285,18 +285,15 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
     
     def test_step(self,batch,dataloader_idx=0):
         accuracy = []
-        class_errors = []
+        
         classes = self.classes.to(self.device)
         image_list = batch[0]
         label_list = batch[1]
         for test_image, test_label in zip(image_list, label_list):
-            
+            class_errors = []
             test_image = torch.unsqueeze(test_image, dim=0).to(self.device)
             test_image = torch.repeat_interleave(test_image, self.batch_size
                                                  , dim=0)
-            # test_image_allclass = test_image_allclass
-            
-            # error = np.arange(self.num_classes) * 0
             error = [0,0,0,0,0,0]
             
 
@@ -322,12 +319,9 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         
             accuracy.append((min_error_index == test_label).float())
             self.class_acc.append([min_error_index, test_label])
-        # accuracy = torch.mean(accuracy)
-        # accuracy = torch.any()
+        
         accuracy = torch.tensor(accuracy)
         classification_acc = torch.mean(accuracy)
-        # self.log("Test accuracy", classification_acc)
-        # self.test_outputs[dataloader_idx].append({"preds": 100*classification_acc})
         self.test_outputs.append(100*classification_acc)
 
 
