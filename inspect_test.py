@@ -50,7 +50,7 @@ def predict(test_set, module):
             mean_error_classes = np.mean(np_class_errors, axis=0)
             min_error_index = np.argmin(mean_error_classes, axis=0) 
         
-            accuracy.append((min_error_index == test_label).float())
+            accuracy.append((min_error_index == test_label).astype('float'))
             class_acc.append([min_error_index, test_label])
         # accuracy = torch.mean(accuracy)
         # accuracy = torch.any()
@@ -78,8 +78,8 @@ def predict(test_set, module):
         class_scores = {}
         label_count = {}
         for scores in class_acc:
-            label = scores[1].item()
-            prediction = scores[0].item()
+            label = scores[1]
+            prediction = scores[0]
             if label == prediction:
                 class_scores[str(label)] = class_scores.get(str(label), 0) + 1
             label_count[str(label)] = label_count.get(str(label),0) + 1
@@ -226,7 +226,7 @@ def main():
     # predict_display(normal, timesteps=t, module=module_lightning, test_index_list=[4])
 
     count_amd, count_cataract, count_dr, count_glaucoma, count_myopia, count_normal = 0,0,0,0,0,0
-    amount_of_images = 50
+    amount_of_images = 10
     pseudo_train_set = []
     train_set = dm.train
 
