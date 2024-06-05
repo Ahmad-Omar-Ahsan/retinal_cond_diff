@@ -230,6 +230,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.batch_size = config['hparams']['batch_size']
         print("Initialized")
         self.csv_information = []
+        self.test_index = 0
         
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
@@ -293,6 +294,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         image_list = batch[0]
         label_list = batch[1]
         for test_image, test_label in zip(image_list, label_list):
+            self.test_index += 1
             class_errors = []
             test_image = torch.unsqueeze(test_image, dim=0).to(self.device)
             test_image = torch.repeat_interleave(test_image, self.batch_size
@@ -323,7 +325,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             accuracy.append((min_error_index == test_label).float())
             self.class_acc.append([min_error_index, test_label])
 
-            csv_info = [min_error_index.item(), test_label.item()]
+            csv_info = [f"Test_image_{self.test_index}",min_error_index.item(), test_label.item()]
             csv_info.extend(mean_error_classes.tolist())
             self.csv_information.append(csv_info)
         
@@ -333,11 +335,11 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
 
     def on_test_epoch_end(self):
-        columns = ["Predicted Label", "Test Label", "AMD mean score", "Cataract mean score", "DR mean score",
+        columns = ["Image", "Predicted Label", "Test Label", "AMD mean score", "Cataract mean score", "DR mean score",
                    "Glaucoma mean score", "Myopia mean score", "Normal mean score"]
 
         df = pd.DataFrame(self.csv_information, columns=columns)
-        df.to_csv(f"{self.config['exp']['csv_dir']}/Test_trial_{self.runs}_seed_{self.seed}.csv")
+        df.to_csv(f"{self.config['exp']['csv_dir']}/Test_trial_{self.runs}_seed_{self.seed}.csv",index=False)
         class_score = torch.tensor(self.test_outputs)
         score = torch.mean(class_score)
         print(f"Classification score : {score.item()}%")
