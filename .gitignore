@@ -10,3 +10,4 @@ tutorial.ipynb
 ukbb_wave.py
 conf.yaml
 *.pth
+*.csv

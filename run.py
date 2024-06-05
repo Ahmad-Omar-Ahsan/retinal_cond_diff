@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
 import torch
 from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning, load_model
-from model_architecture import LightningDDPM_monai, LightningDDIM_monai, LightningDDPMDDIM_monai, Pretrained_LightningDDPM_monai,Conditional_DDIM_monai
+from model_architecture import LightningDDPM_monai,  Pretrained_LightningDDPM_monai,Conditional_DDIM_monai
 from generative.networks.nets import DiffusionModelUNet
 
 
@@ -45,6 +45,7 @@ def pipeline(config):
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.fit(model=Pretrained_DDPM_lightning, datamodule=dm)
     elif config['exp']['training_type'] == 'test':
+        os.makedirs(config['exp']['csv_dir'],exist_ok=True)
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.test(model=Pretrained_DDPM_lightning, datamodule=dm)
     

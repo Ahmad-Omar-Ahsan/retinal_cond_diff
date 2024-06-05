@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
 import torch
 import random
+import pandas as pd
 
 from collections import defaultdict
 from generative.inferers import DiffusionInferer
@@ -169,6 +170,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
         self.config=config
+        self.seed = config['hparams']['seed']
 
         self.model = DiffusionModelUNet(
             spatial_dims=config['hparams']['DiffusionModelUnet']['spatial_dims'],
@@ -227,6 +229,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.save_hyperparameters(ignore="unet_weights")
         self.batch_size = config['hparams']['batch_size']
         print("Initialized")
+        self.csv_information = []
         
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
@@ -319,6 +322,10 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         
             accuracy.append((min_error_index == test_label).float())
             self.class_acc.append([min_error_index, test_label])
+
+            csv_info = [min_error_index.item(), test_label.item()]
+            csv_info.extend(mean_error_classes.tolist())
+            self.csv_information.append(csv_info)
         
         accuracy = torch.tensor(accuracy)
         classification_acc = torch.mean(accuracy)
@@ -326,9 +333,11 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
 
     def on_test_epoch_end(self):
+        columns = ["Predicted Label", "Test Label", "AMD mean score", "Cataract mean score", "DR mean score",
+                   "Glaucoma mean score", "Myopia mean score", "Normal mean score"]
 
-
-
+        df = pd.DataFrame(self.csv_information, columns=columns)
+        df.to_csv(f"{self.config['exp']['csv_dir']}/Test_trial_{self.runs}_seed_{self.seed}.csv")
         class_score = torch.tensor(self.test_outputs)
         score = torch.mean(class_score)
         print(f"Classification score : {score.item()}%")
