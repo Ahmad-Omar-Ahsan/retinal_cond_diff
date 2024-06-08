@@ -354,8 +354,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             '5' : "Normal"
         }
         self.test_outputs.clear()
-        class_scores = {}
-        label_count = {}
+        class_scores = {str(label): 0 for label in range(self.num_classes)}
+        label_count = {str(label): 0 for label in range(self.num_classes)}
         for scores in self.class_acc:
             label = scores[1].item()
             prediction = scores[0].item()
