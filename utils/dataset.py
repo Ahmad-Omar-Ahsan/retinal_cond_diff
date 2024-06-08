@@ -2,6 +2,7 @@ import glob
 import os
 import torch
 import numpy as np
+import pandas as pd
 
 from pytorch_lightning import LightningDataModule
 from sklearn.model_selection import train_test_split
@@ -27,6 +28,24 @@ class Fake_Dataset(Dataset):
     def __getitem__(self, index):
         return self.images[index]
 
+
+
+class PickleDataset(Dataset):
+    def __init__(self, pickle_file):
+        super().__init__()
+        self.data = []
+        df = pd.read_pickle(pickle_file)
+        self.latents = torch.tensor(df['feature'])
+        self.labels = torch.tensor(df['label'])
+        self.data = [self.latents, self.labels]
+
+    def __len__(self):
+        return len(self.latents)
+
+    def __getitem__(self, idx):
+        latent, label = self.data[0][idx], self.data[1][idx]
+        return latent, label
+    
 class FakeData_lightning(LightningDataModule):
     def __init__(self, config, size=4, image_size=[3,224,224], num_classes=0):
         super().__init__()
@@ -59,7 +78,7 @@ class Retinal_Cond_Lightning(LightningDataModule):
         self.config = config
         self.data_dir = self.config['exp']['data_dir']
         self.size = self.config['hparams']['batch_size']
-        self.num_classes = self.config['hparams']['batch_size']
+        self.num_classes = self.config['hparams']['num_classes']
         self.transform = transforms.Compose([transforms.Resize(224),transforms.ToTensor()
                                              ])
 
@@ -85,6 +104,42 @@ class Retinal_Cond_Lightning(LightningDataModule):
         self.test = test_dataset
         self.val = valid_dataset
         print(f"Train, val and test length:  {len(self.train), len(self.val), len(self.test)}")
+
+    def train_dataloader(self):
+        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+    
+    def val_dataloader(self):
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+
+    def test_dataloader(self):
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+    
+    def predict_dataloader(self):
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+
+
+class Pickle_Lightning(LightningDataModule):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.pickle_dir = config['exp']['pickle_dir']
+        self.pickle_train_file = os.path.join(self.pickle_dir, "Train_Feature_latent.pkl")
+        self.pickle_test_file = os.path.join(self.pickle_dir, "Test_Feature_latent.pkl")
+        self.pickle_val_file = os.path.join(self.pickle_dir, "Val_Feature_latent.pkl")
+
+        self.size = self.config['hparams']['batch_size']
+        self.num_classes = self.config['hparams']['num_classes']
+
+    def setup(self, stage):
+        train_dataset = PickleDataset(self.pickle_train_file)
+        valid_dataset = PickleDataset(self.pickle_val_file)
+        test_dataset= PickleDataset(self.pickle_test_file)
+
+        self.train = train_dataset
+        self.test = test_dataset
+        self.val = valid_dataset
+        print(f"Train, val and test length:  {len(self.train), len(self.val), len(self.test)}")
+
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
