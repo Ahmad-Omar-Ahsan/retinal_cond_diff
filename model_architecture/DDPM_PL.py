@@ -80,7 +80,7 @@ class LightningDDPM_monai(pl.LightningModule):
         self.in_channels = config['hparams']['DiffusionModelUnet']['in_channels']
         self.image_h = config['hparams']['image_h']
         self.image_w = config['hparams']['image_w']
-        self.outputs = defaultdict(list)
+        # self.outputs = defaultdict(list)
         self.batches = []
         self.save_hyperparameters()
         
@@ -93,7 +93,7 @@ class LightningDDPM_monai(pl.LightningModule):
         noise_pred = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps)
 
         train_loss = self.criterion(noise_pred.float(), noise.float())
-        self.log("training_loss", train_loss, prog_bar=True)
+        self.log("training_loss", train_loss, prog_bar=True, on_step=True, on_epoch=True)
         
         self.batches.append(batch)
         
@@ -108,7 +108,7 @@ class LightningDDPM_monai(pl.LightningModule):
         noise_pred = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps)
 
         val_loss = self.criterion(noise_pred.float(), noise.float())
-        self.outputs[dataloader_idx].append({"val_loss": val_loss})
+        self.log("val_loss", val_loss, prog_bar=True, on_step=True, on_epoch=True)
         return val_loss
     
     
@@ -140,11 +140,6 @@ class LightningDDPM_monai(pl.LightningModule):
     
     def on_validation_epoch_end(self):
 
-        flat_outputs = []
-        for lst in self.outputs.values():
-            flat_outputs.extend(lst)
-
-        avg_loss = torch.stack([x["val_loss"] for x in flat_outputs]).mean()
         current_epoch = self.current_epoch + 1
         # with autocast(enabled=True):
         if current_epoch % 50 == 0:
@@ -154,9 +149,6 @@ class LightningDDPM_monai(pl.LightningModule):
             images = self.inferer.sample(input_noise=noise, diffusion_model=self.model, scheduler=self.scheduler)
             grid = make_grid(images, nrow=4)
             self.logger.experiment.add_image(f"Generated retinal image in validation epoch end", grid, current_epoch)
-        self.log("validation_loss_epoch_end", avg_loss, prog_bar=True)
-
-        self.outputs.clear()
     
    
 
@@ -214,7 +206,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.in_channels = config['hparams']['DiffusionModelUnet']['in_channels']
         self.image_h = config['hparams']['image_h']
         self.image_w = config['hparams']['image_w']
-        self.outputs = defaultdict(list)
+        
         self.batches = []  
         self.num_classes = config['hparams']['DiffusionModelUnet']['num_class_embeds']
         self.classes = torch.arange(self.num_classes)
@@ -241,7 +233,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         noise_pred = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=labels)
 
         train_loss = self.criterion(noise_pred.float(), noise.float())
-        self.log("training_loss", train_loss, prog_bar=True)
+        self.log("training_loss", train_loss, prog_bar=True, on_step=True, on_epoch=True)
         
         # self.batches.append(batch)
         
@@ -256,17 +248,13 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         noise_pred = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=labels)
 
         val_loss = self.criterion(noise_pred.float(), noise.float())
-        self.outputs[dataloader_idx].append({"val_loss": val_loss})
+        self.log("val_loss", val_loss, prog_bar=True, on_step=True, on_epoch=True)
         return val_loss
 
     
     def on_validation_epoch_end(self):
 
-        flat_outputs = []
-        for lst in self.outputs.values():
-            flat_outputs.extend(lst)
-
-        avg_loss = torch.stack([x["val_loss"] for x in flat_outputs]).mean()
+        
         labels = torch.arange(6).to(self.device)
         current_epoch = self.current_epoch + 1
         self.noise = self.noise.to(self.device)
@@ -283,9 +271,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             grid = make_grid(images, nrow=self.num_classes)
             self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDIM", grid, current_epoch)
 
-        self.log("validation_loss_epoch_end", avg_loss, prog_bar=True)
-
-        self.outputs.clear()
+        
     
     def test_step(self,batch,dataloader_idx=0):
         accuracy = []

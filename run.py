@@ -16,8 +16,8 @@ def pipeline(config):
     # dm = FakeData_lightning(config=config)
     
     if config['exp']['training_type'] == 'scratch':
-        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir'], config['hparams']['scheduler_type']),
-                                              monitor='validation_loss_epoch_end',
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_loss',
                                               verbose=False,
                                               save_last=True,
                                               save_top_k=config['exp']['save_top_k'],
@@ -45,7 +45,7 @@ def pipeline(config):
         trainer.fit(model=DDIM_lightning, datamodule=dm)
     elif config['exp']['training_type'] == 'pretrained':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir'], config['hparams']['scheduler_type']),
-                                              monitor='validation_loss_epoch_end',
+                                              monitor='val_loss',
                                               verbose=False,
                                               save_last=True,
                                               save_top_k=config['exp']['save_top_k'],
@@ -73,7 +73,7 @@ def pipeline(config):
         trainer.fit(model=Pretrained_DDPM_lightning, datamodule=dm)
     elif config['exp']['training_type'] == 'test':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir'], config['hparams']['scheduler_type']),
-                                              monitor='validation_loss_epoch_end',
+                                              monitor='val_loss',
                                               verbose=False,
                                               save_last=True,
                                               save_top_k=config['exp']['save_top_k'],

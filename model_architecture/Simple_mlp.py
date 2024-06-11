@@ -35,7 +35,7 @@ class MLP_classifier(pl.LightningModule):
         predictions = self.net(latents)
         train_loss = self.criterion(input=predictions, target=labels)
 
-        preds = F.softmax(predictions).argmax(1)
+        preds = F.softmax(predictions, dim=1).argmax(dim=1)
         self.train_acc(preds, labels)
 
         self.log("training_loss", train_loss, prog_bar=True, on_step=True, on_epoch=True)
@@ -48,7 +48,7 @@ class MLP_classifier(pl.LightningModule):
 
         predictions = self.net(latents)
         val_loss = self.criterion(input=predictions, target=labels)
-        preds = F.softmax(predictions).argmax(1)
+        preds = F.softmax(predictions, dim=1).argmax(dim=1)
         self.valid_acc(preds, labels)
 
         self.log("val_loss", val_loss, on_step=True, on_epoch=True)
@@ -60,7 +60,7 @@ class MLP_classifier(pl.LightningModule):
 
         predictions = self.net(latents)
 
-        preds = F.softmax(predictions).argmax(1)
+        preds = F.softmax(predictions, dim=1).argmax(dim=1)
         self.test_acc(preds, labels)
         self.log("Test_acc", self.test_acc, on_epoch=True, on_step=True)
         
