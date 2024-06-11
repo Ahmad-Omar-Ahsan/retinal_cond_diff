@@ -28,6 +28,7 @@ class MLP_classifier(pl.LightningModule):
         self.test_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['mlp']['num_classes'])
 
         self.preds_labels = []
+        self.save_hyperparameters()
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
         latents, labels = batch
