@@ -44,7 +44,7 @@ def pipeline(config):
         DDIM_lightning = Conditional_DDIM_monai(config=config)
         trainer.fit(model=DDIM_lightning, datamodule=dm)
     elif config['exp']['training_type'] == 'pretrained':
-        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir'], config['hparams']['scheduler_type']),
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
                                               verbose=False,
                                               save_last=True,
@@ -72,7 +72,7 @@ def pipeline(config):
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.fit(model=Pretrained_DDPM_lightning, datamodule=dm)
     elif config['exp']['training_type'] == 'test':
-        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir'], config['hparams']['scheduler_type']),
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
                                               verbose=False,
                                               save_last=True,
@@ -101,14 +101,14 @@ def pipeline(config):
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.test(model=Pretrained_DDPM_lightning, datamodule=dm)
     elif config['exp']['training_type'] == "mlp":
-        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir'], config['hparams']['scheduler_type']),
-                                              monitor='val_acc',
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_loss',
                                               verbose=False,
                                               save_last=True,
                                               save_top_k=config['exp']['save_top_k'],
                                               save_weights_only=False,
-                                              mode='max',
-                                              filename="mlp-{epoch:02d}-{step}-{val_acc:.2f}"
+                                              mode='min',
+                                              filename="mlp-{epoch:02d}-{step}-{val_loss:.2f}"
                                               )
         trainer = pl.Trainer(
             logger=logger,
