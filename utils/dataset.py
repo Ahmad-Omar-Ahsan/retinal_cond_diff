@@ -46,6 +46,30 @@ class PickleDataset(Dataset):
         latent, label = self.data[0][idx], self.data[1][idx]
         return latent, label
     
+
+class UK_biobank_retinal(Dataset):
+    def __init__(self, sample_list, transform=transforms.Compose([transforms.ToTensor()])):
+        super().__init__()
+        self.sample_list = sample_list
+        self.transform = transform
+    
+    def __len__(self):
+        return len(self.sample_list)
+    
+    def __getitem__(self, index):
+        file_path = self.sample_list[index]
+        sample = Image.open(file_path)
+        sample = self.transform(sample)
+        return sample
+    
+    
+
+class ODIR_Dataset(Dataset):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+
+
 class FakeData_lightning(LightningDataModule):
     def __init__(self, config, size=4, image_size=[3,224,224], num_classes=0):
         super().__init__()
@@ -60,16 +84,16 @@ class FakeData_lightning(LightningDataModule):
         self.test = Fake_Dataset(size=self.size, image_size=self.image_size)
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
     
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
     
 
 class Retinal_Cond_Lightning(LightningDataModule):
@@ -106,16 +130,16 @@ class Retinal_Cond_Lightning(LightningDataModule):
         print(f"Train, val and test length:  {len(self.train), len(self.val), len(self.test)}")
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
     
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
 
 
 class Pickle_Lightning(LightningDataModule):
@@ -154,21 +178,7 @@ class Pickle_Lightning(LightningDataModule):
         return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
 
 
-class UK_biobank_retinal(Dataset):
-    def __init__(self, sample_list, transform=transforms.Compose([transforms.ToTensor()])):
-        super().__init__()
-        self.sample_list = sample_list
-        self.transform = transform
-    
-    def __len__(self):
-        return len(self.sample_list)
-    
-    def __getitem__(self, index):
-        file_path = self.sample_list[index]
-        sample = Image.open(file_path)
-        sample = self.transform(sample)
-        return sample
-    
+
 
 class UK_biobank_data_module(LightningDataModule):
     def __init__(self, config):
@@ -200,22 +210,18 @@ class UK_biobank_data_module(LightningDataModule):
         self.test = self.test
     
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.train, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
     
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.val, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
 
 
-class ODIR_Dataset(Dataset):
-    def __init__(self, config):
-        super().__init__()
-        self.config = config
 
 
 if __name__=='__main__':
