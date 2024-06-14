@@ -142,16 +142,16 @@ class Pickle_Lightning(LightningDataModule):
 
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
     
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
 
 
 class UK_biobank_retinal(Dataset):
@@ -210,6 +210,13 @@ class UK_biobank_data_module(LightningDataModule):
     
     def predict_dataloader(self):
         return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'])
+
+
+class ODIR_Dataset(Dataset):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+
 
 if __name__=='__main__':
     data_dir = "/home/ahmad/ahmad_experiments/retinal_data/Dataset_SPIE"
