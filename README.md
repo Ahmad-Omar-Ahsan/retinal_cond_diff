@@ -17,7 +17,7 @@ Change the values in [config file](conf.yaml).
 
 To initiate the training process use the following command
 ```
-python run.py --conf conf.yaml
+python run.py --conf sample_config/sample_conf.yaml
 ```
 ## Code for sampling
 
@@ -27,4 +27,8 @@ python sampler.py --conf conf.yaml
 ## Code for denoising
 ```
 python denoiser.py --conf conf.yaml
+```
+## Check logs
+```
+tensorboard --logdir=logs --bind_all
 ```
