@@ -95,7 +95,8 @@ class LightningDDPM_monai(pl.LightningModule):
         train_loss = self.criterion(noise_pred.float(), noise.float())
         self.log("training_loss", train_loss, prog_bar=True, on_step=True, on_epoch=True)
         
-        self.batches.append(batch)
+        if batch_idx == 0:
+            self.batches.append(batch)
         
         return train_loss
     
