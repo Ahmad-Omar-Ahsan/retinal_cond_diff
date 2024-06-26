@@ -115,7 +115,7 @@ class LightningDDPM_monai(pl.LightningModule):
     def on_train_epoch_end(self):
         images = self.batches[0]
         current_epoch = self.current_epoch + 1
-        if current_epoch % 50 == 0:
+        if current_epoch % self.config['hparams']['validation_sample_inspect_epoch'] == 0:
             print(f'On training epoch:{self.current_epoch} end\n')
             int_timesteps = int(0.2 * self.inferer.scheduler.num_train_timesteps)
             timesteps = torch.tensor(int_timesteps, dtype=torch.long)
@@ -142,7 +142,7 @@ class LightningDDPM_monai(pl.LightningModule):
 
         current_epoch = self.current_epoch + 1
         # with autocast(enabled=True):
-        if current_epoch % 50 == 0:
+        if current_epoch % self.config['hparams']['validation_sample_inspect_epoch'] == 0:
             print(f'On validation epoch:{self.current_epoch} end\n')
             noise = torch.randn((8, self.in_channels , self.image_h, self.image_w)).to(self.device)
             self.scheduler.set_timesteps(num_inference_steps=self.num_inference_timesteps)

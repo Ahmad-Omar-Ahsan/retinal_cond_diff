@@ -14,8 +14,35 @@ def pipeline(config):
     
     
     # dm = FakeData_lightning(config=config)
-    
-    if config['exp']['training_type'] == 'scratch':
+    if config['exp']['training_type'] == 'scratch_UKBB':
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_loss',
+                                              verbose=False,
+                                              save_last=True,
+                                              save_top_k=config['exp']['save_top_k'],
+                                              save_weights_only=False,
+                                              mode='min',
+                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.2f}"
+                                              )
+        trainer = pl.Trainer(
+            logger=logger,
+            log_every_n_steps=config['exp']['log_every_n_steps'],
+            devices=config['exp']['device'],
+            min_epochs = config['hparams']['min_epochs'],
+            max_epochs = config['hparams']['max_epochs'],
+            num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
+            accelerator=config['exp']['accelerator'],
+            callbacks=[checkpoint_callback],
+            precision='16-mixed',
+            # profiler='pytorch',
+            accumulate_grad_batches=8
+        )
+        dm = UK_biobank_data_module(
+            config=config
+        )
+        DDPM_lightning = LightningDDPM_monai(config=config)
+        trainer.fit(model=DDPM_lightning, datamodule=dm)
+    elif config['exp']['training_type'] == 'scratch_conditional':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
                                               verbose=False,
