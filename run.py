@@ -4,7 +4,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
 import torch
-from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning, load_model, Pickle_Lightning
+from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning_Split, load_model, Pickle_Lightning
 from model_architecture import LightningDDPM_monai,  Pretrained_LightningDDPM_monai,Conditional_DDIM_monai,MLP_classifier
 from generative.networks.nets import DiffusionModelUNet
 
@@ -65,7 +65,7 @@ def pipeline(config):
             # profiler='pytorch',
             accumulate_grad_batches=8
         )
-        dm = Retinal_Cond_Lightning(
+        dm = Retinal_Cond_Lightning_Split(
             config=config
         )
         DDIM_lightning = Conditional_DDIM_monai(config=config)
@@ -93,7 +93,7 @@ def pipeline(config):
             # profiler='pytorch',
             accumulate_grad_batches=8
         )
-        dm = Retinal_Cond_Lightning(
+        dm = Retinal_Cond_Lightning_Split(
             config=config
         )
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
@@ -122,7 +122,7 @@ def pipeline(config):
             accumulate_grad_batches=8
         )
         os.makedirs(config['exp']['csv_dir'],exist_ok=True)
-        dm = Retinal_Cond_Lightning(
+        dm = Retinal_Cond_Lightning_Split(
             config=config
         )
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
@@ -178,7 +178,7 @@ def pipeline(config):
             accumulate_grad_batches=8
         )
         os.makedirs(config['exp']['csv_dir'],exist_ok=True)
-        dm = Retinal_Cond_Lightning(
+        dm = Retinal_Cond_Lightning_Split(
             config=config
         )
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai(config=config)

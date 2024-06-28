@@ -140,6 +140,42 @@ class Retinal_Cond_Lightning(LightningDataModule):
     
     def predict_dataloader(self):
         return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+    
+
+class Retinal_Cond_Lightning_Split(LightningDataModule):
+    def __init__(self, config):
+        super().__init__()
+        self.config = config
+        self.data_dir = self.config['exp']['data_dir']
+        self.size = self.config['hparams']['batch_size']
+        self.num_classes = self.config['hparams']['num_classes']
+        self.transform = transforms.Compose([transforms.Resize(224),transforms.ToTensor()
+                                             ])
+        self.train_dir = os.path.join(self.data_dir,'train')
+        self.val_dir = os.path.join(self.data_dir, 'val')
+        self.test_dir = os.path.join(self.data_dir, 'test')
+
+    def setup(self, stage):
+        train_dataset = ImageFolder(root=self.train_dir, transform=self.transform)
+        valid_dataset = ImageFolder(root=self.val_dir, transform=self.transform)
+        test_dataset = ImageFolder(root=self.test_dir, transform=self.transform)
+        self.train = train_dataset
+        self.test = test_dataset
+        self.val = valid_dataset
+        print(f"Train, val and test length:  {len(self.train), len(self.val), len(self.test)}")
+
+    def train_dataloader(self):
+        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+    
+    def val_dataloader(self):
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+
+    def test_dataloader(self):
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+    
+    def predict_dataloader(self):
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+
 
 
 class Pickle_Lightning(LightningDataModule):
