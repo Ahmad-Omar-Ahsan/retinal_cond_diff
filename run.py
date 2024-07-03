@@ -22,7 +22,7 @@ def pipeline(config):
                                               save_top_k=config['exp']['save_top_k'],
                                               save_weights_only=False,
                                               mode='min',
-                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.2f}"
+                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.5f}"
                                               )
         trainer = pl.Trainer(
             logger=logger,
@@ -50,7 +50,7 @@ def pipeline(config):
                                               save_top_k=config['exp']['save_top_k'],
                                               save_weights_only=False,
                                               mode='min',
-                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.2f}"
+                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.5f}"
                                               )
         trainer = pl.Trainer(
             logger=logger,
@@ -78,7 +78,7 @@ def pipeline(config):
                                               save_top_k=config['exp']['save_top_k'],
                                               save_weights_only=False,
                                               mode='min',
-                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.2f}"
+                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.5f}"
                                               )
         trainer = pl.Trainer(
             logger=logger,
@@ -106,7 +106,7 @@ def pipeline(config):
                                               save_top_k=config['exp']['save_top_k'],
                                               save_weights_only=False,
                                               mode='min',
-                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.2f}"
+                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.5f}"
                                               )
         trainer = pl.Trainer(
             logger=logger,
@@ -135,7 +135,7 @@ def pipeline(config):
                                               save_top_k=config['exp']['save_top_k'],
                                               save_weights_only=False,
                                               mode='min',
-                                              filename="mlp-{epoch:02d}-{step}-{val_loss:.2f}"
+                                              filename="mlp-{epoch:02d}-{step}-{val_loss:.5f}"
                                               )
         trainer = pl.Trainer(
             logger=logger,
@@ -162,7 +162,7 @@ def pipeline(config):
                                               save_top_k=config['exp']['save_top_k'],
                                               save_weights_only=False,
                                               mode='min',
-                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.2f}"
+                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.5f}"
                                               )
         trainer = pl.Trainer(
             logger=logger,
