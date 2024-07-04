@@ -13,7 +13,8 @@ from torchvision.io import read_image
 from torchvision import transforms
 from PIL import Image 
 from torchvision.datasets import ImageFolder
-
+from conf_parser import get_config
+from torchvision.utils import save_image
 
 class Fake_Dataset(Dataset):
     def __init__(self, size=4, image_size=[3,224,224]):
@@ -165,16 +166,16 @@ class Retinal_Cond_Lightning_Split(LightningDataModule):
         print(f"Train, val and test length:  {len(self.train), len(self.val), len(self.test)}")
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], shuffle=True)
     
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'], shuffle=True)
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'],  shuffle=True)
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], shuffle=True)
 
 
 
@@ -261,11 +262,79 @@ class UK_biobank_data_module(LightningDataModule):
 
 
 if __name__=='__main__':
-    data_dir = "/home/ahmad/ahmad_experiments/retinal_data/Dataset_SPIE"
-    transform_image = transforms.Compose([
-    transforms.ToTensor(),
-   ])
-    dataset = ImageFolder(root=data_dir, transform=transform_image)
-    sample, label = dataset[0]
-    print(sample.shape, label)
-    print(dataset.class_to_idx)
+    config_dir = "/home/ahmad/ahmad_experiments/retinal_cond_diff/conf.yaml"
+#     data_dir = "/home/ahmad/ahmad_experiments/retinal_data/Dataset_SPIE"
+#     transform_image = transforms.Compose([
+#     transforms.ToTensor(),
+#    ])
+#     dataset = ImageFolder(root=data_dir, transform=transform_image)
+    # sample, label = dataset[0]
+    # print(sample.shape, label)
+    # print(dataset.class_to_idx)
+    config = get_config(config_file=config_dir)
+    dm = Retinal_Cond_Lightning_Split(config=config)
+    dm.setup('fit')
+    amd_count, cat_count, dr_count, mya_count, gl_count, nor_count = 0,0,0,0,0,0
+    for image, label in dm.train:
+        if label == 0 and amd_count<5:
+            save_image(image,fp=f"amd_train_{amd_count}.png")
+            amd_count += 1
+        elif label == 1 and cat_count < 5:
+            save_image(image,fp=f"cat_train_{cat_count}.png")
+            cat_count += 1
+        elif label == 2 and dr_count < 5:
+            save_image(image,fp=f"dr_train_{dr_count}.png")
+            dr_count += 1
+        elif label == 3 and gl_count < 5:
+            save_image(image,fp=f"gl_train_{gl_count}.png")
+            gl_count += 1
+        elif label == 4 and mya_count < 5:
+            save_image(image,fp=f"mya_train_{mya_count}.png")
+            mya_count += 1
+        elif label == 5 and nor_count < 5:
+            save_image(image,fp=f"nor_train_{nor_count}.png")
+            nor_count += 1
+
+    amd_count, cat_count, dr_count, mya_count, gl_count, nor_count = 0,0,0,0,0,0
+    for image, label in dm.test:
+        if label == 0 and amd_count<5:
+            save_image(image,fp=f"amd_test_{amd_count}.png")
+            amd_count += 1
+        elif label == 1 and cat_count < 5:
+            save_image(image,fp=f"cat_test_{cat_count}.png")
+            cat_count += 1
+        elif label == 2 and dr_count < 5:
+            save_image(image,fp=f"dr_test_{dr_count}.png")
+            dr_count += 1
+        elif label == 3 and gl_count < 5:
+            save_image(image,fp=f"gl_test_{gl_count}.png")
+            gl_count += 1
+        elif label == 4 and mya_count < 5:
+            save_image(image,fp=f"mya_test_{mya_count}.png")
+            mya_count += 1
+        elif label == 5 and nor_count < 5:
+            save_image(image,fp=f"nor_test_{nor_count}.png")
+            nor_count += 1
+
+    
+    amd_count, cat_count, dr_count, mya_count, gl_count, nor_count = 0,0,0,0,0,0
+    for image, label in dm.val:
+        if label == 0 and amd_count<5:
+            save_image(image,fp=f"amd_val_{amd_count}.png")
+            amd_count += 1
+        elif label == 1 and cat_count < 5:
+            save_image(image,fp=f"cat_val_{cat_count}.png")
+            cat_count += 1
+        elif label == 2 and dr_count < 5:
+            save_image(image,fp=f"dr_val_{dr_count}.png")
+            dr_count += 1
+        elif label == 3 and gl_count < 5:
+            save_image(image,fp=f"gl_val_{gl_count}.png")
+            gl_count += 1
+        elif label == 4 and mya_count < 5:
+            save_image(image,fp=f"mya_val_{mya_count}.png")
+            mya_count += 1
+        elif label == 5 and nor_count < 5:
+            save_image(image,fp=f"nor_val_{nor_count}.png")
+            nor_count += 1
+
