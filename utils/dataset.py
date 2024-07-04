@@ -84,16 +84,16 @@ class FakeData_lightning(LightningDataModule):
         self.test = Fake_Dataset(size=self.size, image_size=self.image_size)
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
 
 class Retinal_Cond_Lightning(LightningDataModule):
@@ -130,16 +130,16 @@ class Retinal_Cond_Lightning(LightningDataModule):
         print(f"Train, val and test length:  {len(self.train), len(self.val), len(self.test)}")
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
 
 class Retinal_Cond_Lightning_Split(LightningDataModule):
@@ -202,16 +202,16 @@ class Pickle_Lightning(LightningDataModule):
 
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
 
 
 
@@ -246,16 +246,16 @@ class UK_biobank_data_module(LightningDataModule):
         self.test = self.test
     
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.train, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'])
     
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.val, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'])
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'])
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'], pin_memory=True)
+        return DataLoader(self.test, batch_size=self.batch_size, num_workers=self.config['exp']['num_workers'])
 
 
 
