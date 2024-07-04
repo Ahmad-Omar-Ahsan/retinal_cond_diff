@@ -13,7 +13,6 @@ from torchvision.io import read_image
 from torchvision import transforms
 from PIL import Image 
 from torchvision.datasets import ImageFolder
-from conf_parser import get_config
 from torchvision.utils import save_image
 
 class Fake_Dataset(Dataset):
@@ -271,70 +270,5 @@ if __name__=='__main__':
     # sample, label = dataset[0]
     # print(sample.shape, label)
     # print(dataset.class_to_idx)
-    config = get_config(config_file=config_dir)
-    dm = Retinal_Cond_Lightning_Split(config=config)
-    dm.setup('fit')
-    amd_count, cat_count, dr_count, mya_count, gl_count, nor_count = 0,0,0,0,0,0
-    for image, label in dm.train:
-        if label == 0 and amd_count<5:
-            save_image(image,fp=f"amd_train_{amd_count}.png")
-            amd_count += 1
-        elif label == 1 and cat_count < 5:
-            save_image(image,fp=f"cat_train_{cat_count}.png")
-            cat_count += 1
-        elif label == 2 and dr_count < 5:
-            save_image(image,fp=f"dr_train_{dr_count}.png")
-            dr_count += 1
-        elif label == 3 and gl_count < 5:
-            save_image(image,fp=f"gl_train_{gl_count}.png")
-            gl_count += 1
-        elif label == 4 and mya_count < 5:
-            save_image(image,fp=f"mya_train_{mya_count}.png")
-            mya_count += 1
-        elif label == 5 and nor_count < 5:
-            save_image(image,fp=f"nor_train_{nor_count}.png")
-            nor_count += 1
-
-    amd_count, cat_count, dr_count, mya_count, gl_count, nor_count = 0,0,0,0,0,0
-    for image, label in dm.test:
-        if label == 0 and amd_count<5:
-            save_image(image,fp=f"amd_test_{amd_count}.png")
-            amd_count += 1
-        elif label == 1 and cat_count < 5:
-            save_image(image,fp=f"cat_test_{cat_count}.png")
-            cat_count += 1
-        elif label == 2 and dr_count < 5:
-            save_image(image,fp=f"dr_test_{dr_count}.png")
-            dr_count += 1
-        elif label == 3 and gl_count < 5:
-            save_image(image,fp=f"gl_test_{gl_count}.png")
-            gl_count += 1
-        elif label == 4 and mya_count < 5:
-            save_image(image,fp=f"mya_test_{mya_count}.png")
-            mya_count += 1
-        elif label == 5 and nor_count < 5:
-            save_image(image,fp=f"nor_test_{nor_count}.png")
-            nor_count += 1
-
-    
-    amd_count, cat_count, dr_count, mya_count, gl_count, nor_count = 0,0,0,0,0,0
-    for image, label in dm.val:
-        if label == 0 and amd_count<5:
-            save_image(image,fp=f"amd_val_{amd_count}.png")
-            amd_count += 1
-        elif label == 1 and cat_count < 5:
-            save_image(image,fp=f"cat_val_{cat_count}.png")
-            cat_count += 1
-        elif label == 2 and dr_count < 5:
-            save_image(image,fp=f"dr_val_{dr_count}.png")
-            dr_count += 1
-        elif label == 3 and gl_count < 5:
-            save_image(image,fp=f"gl_val_{gl_count}.png")
-            gl_count += 1
-        elif label == 4 and mya_count < 5:
-            save_image(image,fp=f"mya_val_{mya_count}.png")
-            mya_count += 1
-        elif label == 5 and nor_count < 5:
-            save_image(image,fp=f"nor_val_{nor_count}.png")
-            nor_count += 1
-
+    # config = get_config(config_file=config_dir)
+   
