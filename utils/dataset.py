@@ -168,13 +168,13 @@ class Retinal_Cond_Lightning_Split(LightningDataModule):
         return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], shuffle=True)
     
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'], shuffle=True)
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'],  shuffle=True)
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'], shuffle=True)
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
 
 
 
