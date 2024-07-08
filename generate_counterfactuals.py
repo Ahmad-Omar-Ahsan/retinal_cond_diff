@@ -48,7 +48,7 @@ def generate_counterfactuals(config):
             config=config
     )
     dm.setup('test')
-    step_size = 5
+    step_size =  config['hparams']['num_train_timesteps'] // config['hparams']['denoising_timestep']
     diffusion_module = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
     latent_space_depth = int(config['hparams']['denoising_timestep'])
     progress_bar = tqdm(range(0, latent_space_depth+step_size, step_size))
@@ -96,7 +96,7 @@ def generate_counterfactuals(config):
             # images = diffusion_module.inferer.sample(input_noise=current_img_multiple, diffusion_model=diffusion_module.model, scheduler=diffusion_module.scheduler_DDIM, conditioning=conditions)
             concat_images = torch.concat((image, latent_img, current_img_multiple),dim=0)
             grid = make_grid(concat_images)
-            image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_count_{count}.png")
+            image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_pred_{pred.item()}_count_{count}.png")
             save_image(grid, fp=image_path)
             count += 1
 
