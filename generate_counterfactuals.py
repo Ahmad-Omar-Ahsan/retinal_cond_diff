@@ -48,19 +48,17 @@ def generate_counterfactuals(config):
             config=config
     )
     dm.setup('test')
-    step_size =  config['hparams']['num_train_timesteps'] // config['hparams']['denoising_timestep']
+    step_size =  config['hparams']['num_train_timesteps'] // config['hparams']['num_inference_timesteps']
     diffusion_module = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
     latent_space_depth = int(config['hparams']['denoising_timestep'])
     progress_bar = tqdm(range(0, latent_space_depth+step_size, step_size))
-    diffusion_module.scheduler_DDIM.set_timesteps(num_inference_steps=config['hparams']['denoising_timestep'])
+    diffusion_module.scheduler_DDIM.set_timesteps(num_inference_steps=config['hparams']['num_inference_timesteps'])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     count = 0
     
     
     with torch.no_grad():
         for image, label in dm.test_dataloader():
-            # print(image.shape, label.shape)
-            # print(label)
             label = label.to(device)
             image = image.to(device)
             current_img = image.to(device)
@@ -80,7 +78,7 @@ def generate_counterfactuals(config):
                                                     ,dim=0)
 
             conditions = torch.arange(6).to(device)
-            diffusion_module.scheduler_DDIM.clip_sample = False
+            diffusion_module.scheduler_DDIM.clip_sample = True
 
             for t in np.arange(config['hparams']['denoising_timestep'], -step_size, -step_size):
                 timesteps = torch.Tensor((t,)).to(device)
