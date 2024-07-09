@@ -78,7 +78,7 @@ def generate_counterfactuals(config):
                                                     ,dim=0)
 
             conditions = torch.arange(6).to(device)
-            diffusion_module.scheduler_DDIM.clip_sample = True
+            diffusion_module.scheduler_DDIM.clip_sample = False
 
             for t in np.arange(config['hparams']['denoising_timestep'], -step_size, -step_size):
                 timesteps = torch.Tensor((t,)).to(device)
