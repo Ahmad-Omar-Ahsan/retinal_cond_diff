@@ -10,7 +10,7 @@ from tqdm import tqdm
 from torchvision.utils import make_grid, save_image
 import copy
 import numpy as np
-
+import time
 
 def predict(config, test_image, diffusion_module, device):
     classes = torch.arange(6).to(device)
@@ -59,6 +59,7 @@ def generate_counterfactuals(config):
     
     with torch.no_grad():
         for image, label in dm.test_dataloader():
+            start = time.time()
             label = label.to(device)
             image = image.to(device)
             current_img = image.to(device)
@@ -79,6 +80,8 @@ def generate_counterfactuals(config):
 
             conditions = torch.arange(6).to(device)
             diffusion_module.scheduler_DDIM.clip_sample = False
+            label_dir = os.path.join(config['exp']['counterfactual_dir'], str(label.item()))
+            os.makedirs(label_dir, exist_ok=True)
 
             for t in np.arange(config['hparams']['denoising_timestep'], -step_size, -step_size):
                 timesteps = torch.Tensor((t,)).to(device)
@@ -92,11 +95,28 @@ def generate_counterfactuals(config):
                 normal, _ = diffusion_module.scheduler_DDIM.step(model_output[5].unsqueeze(dim=0), t, current_img_multiple[5].unsqueeze(dim=0))
                 current_img_multiple = torch.concat((amd,cataract,dr,glaucoma,myopia,normal))
             # images = diffusion_module.inferer.sample(input_noise=current_img_multiple, diffusion_model=diffusion_module.model, scheduler=diffusion_module.scheduler_DDIM, conditioning=conditions)
-            concat_images = torch.concat((image, latent_img, current_img_multiple),dim=0)
+            # amd_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_amd_count_{count}.png")
+            # cataract_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_cataract_count_{count}.png")
+            # dr_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_dr_count_{count}.png")
+            # glaucoma_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_glaucoma_count_{count}.png")
+            # myopia_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_myopia_count_{count}.png")
+            normal_image_path = os.path.join(label_dir,f"Label_{label.item()}_normal_count_{count}.png")
+            original_image_path = os.path.join(label_dir,f"Label_{label.item()}_original_image_count_{count}.png")
+            # save_image(amd,fp=amd_image_path)
+            # save_image(cataract,fp=cataract_image_path)
+            # save_image(dr,fp=dr_image_path)
+            # save_image(glaucoma,fp=glaucoma_image_path)
+            # save_image(myopia, fp=myopia_image_path)
+            save_image(normal,fp=normal_image_path)
+            save_image(image, fp=original_image_path)
+
+            concat_images = torch.concat((image, current_img_multiple),dim=0)
             grid = make_grid(concat_images)
-            image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_pred_{pred.item()}_count_{count}.png")
+            image_path = os.path.join(label_dir,f"Label_{label.item()}_pred_{pred.item()}_count_{count}.png")
             save_image(grid, fp=image_path)
             count += 1
+            end = time.time()
+            print(f"Elasped time: {end-start}s.")
 
             
 

@@ -11,4 +11,5 @@ torch==2.1.2
 torchvision==0.16.2
 tqdm==4.66.1
 scikit-learn
+scikit-image==0.19.3
 timm==0.3.2
