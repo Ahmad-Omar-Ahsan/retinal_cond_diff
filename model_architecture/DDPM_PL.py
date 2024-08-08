@@ -1,8 +1,8 @@
 import pytorch_lightning as pl
 import torch
 import random
+import os
 import pandas as pd
-
 from collections import defaultdict
 from generative.inferers import DiffusionInferer
 from generative.networks.nets import DiffusionModelUNet
@@ -15,6 +15,7 @@ import numpy as np
 from .Custom_Inferer import FlexibleConditionalDiffusionInferer
 torch.set_float32_matmul_precision('medium')
 import copy
+import pickle
 
 def set_timesteps_without_ratio(num_inference_steps: int, device: str | torch.device | None = None) -> None:
         """
@@ -219,12 +220,13 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         # self.errors_index = 
         self.test_outputs = []
         self.class_acc = []
-        self.save_hyperparameters(ignore="unet_weights")
+        self.save_hyperparameters(ignore=["unet_weights",'file_path_labels'])
+
         self.batch_size = config['hparams']['batch_size']
         print("Initialized")
         self.csv_information = []
         self.test_index = 0
-        
+        self.scores_dict = {}
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
         images, labels = batch
@@ -274,13 +276,20 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
         
     
-    def test_step(self,batch,dataloader_idx=0):
+    def test_step(self,batch,batch_idx):
         accuracy = []
-        
+        timestep_list = []
+        filepath_labels = self.config['exp']['file_path_labels'][batch_idx*self.batch_size:(batch_idx+1)*self.batch_size]
+        # filepaths_labels = self.dm.dataloader.dataset.imgs
+        filenames = [x[0] for x in filepath_labels]
         classes = self.classes.to(self.device)
         image_list = batch[0]
         label_list = batch[1]
-        for test_image, test_label in zip(image_list, label_list):
+        
+        for test_image, test_label,filename in zip(image_list, label_list,filenames):
+            self.scores_dict[filename] = {}
+            self.scores_dict[filename]['label'] = test_label.item()
+            
             self.test_index += 1
             class_errors = []
             test_image = torch.unsqueeze(test_image, dim=0).to(self.device)
@@ -291,8 +300,9 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
             for r in range(self.runs):
                 timesteps = torch.randint(0, self.scheduler.num_train_timesteps,(1,),device=self.device).long()
+                timestep_list.append(timesteps.item())
                 timesteps=torch.repeat_interleave(timesteps,self.batch_size,dim=0)
-
+                
                 noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
                 noise = torch.repeat_interleave(noise,self.batch_size,dim=0)
                
@@ -304,15 +314,17 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                 
                 class_errors.append(copy.deepcopy(error))
         
-            
+            self.scores_dict[filename]['timestep'] = timestep_list
+            self.scores_dict[filename]['class_errors_per_trial'] = class_errors
             np_class_errors = np.array(class_errors)
             mean_error_classes = np.mean(np_class_errors, axis=0)
             min_error_index = np.argmin(mean_error_classes, axis=0) 
-        
+
+            self.scores_dict[filename]['predicted_label'] = min_error_index
             accuracy.append((min_error_index == test_label).float())
             self.class_acc.append([min_error_index, test_label])
 
-            csv_info = [f"Test_image_{self.test_index}",min_error_index.item(), test_label.item()]
+            csv_info = [filename, min_error_index.item(), test_label.item()]
             csv_info.extend(mean_error_classes.tolist())
             self.csv_information.append(csv_info)
         
@@ -327,6 +339,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
         df = pd.DataFrame(self.csv_information, columns=columns)
         df.to_csv(f"{self.config['exp']['csv_dir']}/Test_trial_{self.runs}_seed_{self.seed}.csv",index=False)
+        with open(f"{self.config['exp']['csv_dir']}/Test_trial_{self.runs}_seed_{self.seed}.pkl", 'wb') as pickle_file:
+            pickle.dump(self.scores_dict, pickle_file)
         class_score = torch.tensor(self.test_outputs)
         score = torch.mean(class_score)
         print(f"Classification score : {score.item()}%")

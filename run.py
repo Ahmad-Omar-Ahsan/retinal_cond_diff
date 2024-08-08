@@ -124,8 +124,10 @@ def pipeline(config):
         dm = Retinal_Cond_Lightning_Split(
             config=config
         )
+        dm.setup(stage='test')
+        config['exp']['file_path_labels'] = dm.test.imgs
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
-        trainer.test(model=Pretrained_DDPM_lightning, datamodule=dm)
+        trainer.test(model=Pretrained_DDPM_lightning, dataloaders=dm.test_dataloader() )
     elif config['exp']['training_type'] == "mlp":
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
