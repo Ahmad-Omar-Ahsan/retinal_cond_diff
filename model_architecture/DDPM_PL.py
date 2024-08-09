@@ -281,52 +281,72 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         timestep_list = []
         filepath_labels = self.config['exp']['file_path_labels'][batch_idx*self.batch_size:(batch_idx+1)*self.batch_size]
         # filepaths_labels = self.dm.dataloader.dataset.imgs
-        filenames = [x[0] for x in filepath_labels]
+        filename_list = [x[0] for x in filepath_labels]
         classes = self.classes.to(self.device)
         image_list = batch[0]
         label_list = batch[1]
         
-        for test_image, test_label,filename in zip(image_list, label_list,filenames):
-            self.scores_dict[filename] = {}
-            self.scores_dict[filename]['label'] = test_label.item()
+        for i in range(0, len(filename_list), self.batch_size):
+        # for test_image, test_label,filename in zip(image_list, label_list,filenames):
+            filenames = filename_list[self.batch_size*i: self.batch_size*(i+1)]
+            testlabels = label_list[self.batch_size*i: self.batch_size*(i+1)]
+            images = image_list[self.batch_size*i: self.batch_size*(i+1)]
+           
+            self.scores_dict.update({filename: {} for filename in filenames})
+
             
+            for test_count,filename in enumerate(filenames):
+                
+                self.scores_dict[filename]['test_label'] = testlabels[test_count].item()
+                test_count += 1
+                self.scores_dict[filename]['class_errors_each_trial'] = []
+                self.scores_dict[filename]['timestep'] = []
+
+            
+
             self.test_index += 1
-            class_errors = []
-            test_image = torch.unsqueeze(test_image, dim=0).to(self.device)
-            test_image = torch.repeat_interleave(test_image, self.batch_size
-                                                 , dim=0)
-            error = [0,0,0,0,0,0]
+            test_image = images.to(self.device)
+            test_image = images.repeat(self.num_classes,1,1,1)
+            error = [0] * self.num_classes * self.batch_size
             
 
             for r in range(self.runs):
                 timesteps = torch.randint(0, self.scheduler.num_train_timesteps,(1,),device=self.device).long()
-                timestep_list.append(timesteps.item())
-                timesteps=torch.repeat_interleave(timesteps,self.batch_size,dim=0)
+
+                for _, (filename,_) in enumerate(self.scores_dict.items()):
+                    self.scores_dict[filename]['timestep'].append(timesteps.item())
+
+                timesteps=torch.repeat_interleave(timesteps,self.num_classes * self.batch_size,dim=0)
                 
                 noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
-                noise = torch.repeat_interleave(noise,self.batch_size,dim=0)
+                noise = torch.repeat_interleave(noise,self.batch_size * self.num_classes,dim=0)
                
-                for c in range(0,len(classes), self.batch_size):
-                    conditions = classes[c: c+self.batch_size]
-                    output = self.inferer(inputs=test_image, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=conditions)
-                    value = self.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1).to(self.device)
-                    error[c: c+self.batch_size] = value.cpu().numpy()
                 
-                class_errors.append(copy.deepcopy(error))
-        
-            self.scores_dict[filename]['timestep'] = timestep_list
-            self.scores_dict[filename]['class_errors_per_trial'] = class_errors
-            np_class_errors = np.array(class_errors)
-            mean_error_classes = np.mean(np_class_errors, axis=0)
-            min_error_index = np.argmin(mean_error_classes, axis=0) 
+                conditions = torch.repeat_interleave(classes, self.batch_size,dim=0)
+                output = self.inferer(inputs=test_image, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=conditions)
+                losses = self.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1).to(self.device)
+                error = losses.cpu().numpy()
+                
+                error_lists = [error[i::self.batch_size] for i in range(self.batch_size)]
+                error_count = 0
+                for filename in filenames:
+                    if error_count < len(error_lists):
+                        self.scores_dict[filename]['class_errors_each_trial'].append(error_lists[error_count])
+                        error_count += 1
 
-            self.scores_dict[filename]['predicted_label'] = min_error_index
-            accuracy.append((min_error_index == test_label).float())
-            self.class_acc.append([min_error_index, test_label])
+                
+            for filename in filenames:
 
-            csv_info = [filename, min_error_index.item(), test_label.item()]
-            csv_info.extend(mean_error_classes.tolist())
-            self.csv_information.append(csv_info)
+                np_class_errors = np.array(self.scores_dict[filename]['class_errors_each_trial'])
+                mean_error_classes = np.mean(np_class_errors, axis=0)
+                min_error_index = np.argmin(mean_error_classes, axis=0) 
+                self.scores_dict[filename]['predicted_label'] = min_error_index
+                accuracy.append((min_error_index == self.scores_dict[filename]['test_label'])* 1.0)
+                self.class_acc.append([min_error_index, self.scores_dict[filename]['test_label']])
+                csv_info = [filename, min_error_index.item(), self.scores_dict[filename]['test_label']]
+                csv_info.extend(mean_error_classes.tolist())
+                self.csv_information.append(csv_info)
+            
         
         accuracy = torch.tensor(accuracy)
         classification_acc = torch.mean(accuracy)
@@ -358,7 +378,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         class_scores = {str(label): 0 for label in range(self.num_classes)}
         label_count = {str(label): 0 for label in range(self.num_classes)}
         for scores in self.class_acc:
-            label = scores[1].item()
+            label = scores[1]
             prediction = scores[0].item()
             if label == prediction:
                 class_scores[str(label)] = class_scores.get(str(label), 0) + 1
