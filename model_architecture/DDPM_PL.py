@@ -307,7 +307,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             self.test_index += 1
             test_image = images.to(self.device)
             test_image = images.repeat(self.num_classes,1,1,1)
-            error = [0] * self.num_classes * self.batch_size
+            error = [0] * self.num_classes * len(filenames)
             
 
             for r in range(self.runs):
@@ -316,13 +316,13 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                 for _, (filename,_) in enumerate(self.scores_dict.items()):
                     self.scores_dict[filename]['timestep'].append(timesteps.item())
 
-                timesteps=torch.repeat_interleave(timesteps,self.num_classes * self.batch_size,dim=0)
+                timesteps=torch.repeat_interleave(timesteps,self.num_classes * len(filenames),dim=0)
                 
                 noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
-                noise = torch.repeat_interleave(noise,self.batch_size * self.num_classes,dim=0)
+                noise = torch.repeat_interleave(noise,len(filenames) * self.num_classes,dim=0)
                
                 
-                conditions = torch.repeat_interleave(classes, self.batch_size,dim=0)
+                conditions = torch.repeat_interleave(classes, len(filenames), dim=0)
                 output = self.inferer(inputs=test_image, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=conditions)
                 losses = self.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1).to(self.device)
                 error = losses.cpu().numpy()

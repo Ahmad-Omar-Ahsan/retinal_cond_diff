@@ -4,6 +4,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
 import torch
+import yaml
 from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning_Split, load_model, Pickle_Lightning
 from model_architecture import LightningDDPM_monai,  Pretrained_LightningDDPM_monai,Conditional_DDIM_monai,MLP_classifier
 
@@ -216,6 +217,8 @@ def pipeline(config):
 
 def main(args):
     config = get_config(args.conf)
+    config_str = yaml.dump(config)
+    print("Using settings:\n", config_str)
     seed_everything(config["hparams"]["seed"])
     pipeline(config)
 
