@@ -327,7 +327,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                 losses = self.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1).to(self.device)
                 error = losses.cpu().numpy()
                 
-                error_lists = [error[i::self.batch_size] for i in range(self.batch_size)]
+                error_lists = [error[i::len(filenames)] for i in range(len(filenames))]
                 error_count = 0
                 for filename in filenames:
                     if error_count < len(error_lists):
