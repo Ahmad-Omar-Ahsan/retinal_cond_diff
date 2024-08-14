@@ -59,6 +59,7 @@ class UK_biobank_retinal(Dataset):
     def __getitem__(self, index):
         file_path = self.sample_list[index]
         sample = Image.open(file_path)
+        sample = sample.convert("RGB")
         sample = self.transform(sample)
         return sample
     
