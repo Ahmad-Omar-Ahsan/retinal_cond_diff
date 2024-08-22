@@ -6,7 +6,7 @@ import os
 from generative.networks.nets import DiffusionModelUNet
 from model_architecture import LightningDDPM_monai, LightningDDPMDDIM_monai, Pretrained_LightningDDPM_monai
 
-def seed_everything(seed: str) -> None:
+def seed_everything(seed: int) -> None:
     """Set manual seed.
     Args:
         seed (int): Supplied seed.
