@@ -3,6 +3,8 @@ import torch.nn.functional as F
 import torch.nn as nn
 import torchmetrics
 import torch
+from sklearn.metrics import accuracy_score
+import numpy as np
 
 class MLP_classifier(pl.LightningModule):
     def __init__(self, config):
@@ -22,6 +24,7 @@ class MLP_classifier(pl.LightningModule):
         self.train_prediction_labels = []
         self.val_prediction_labels = []
         self.test_prediction_labels = []
+        self.test_labels = []
 
         self.train_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['mlp']['num_classes'])
         self.valid_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['mlp']['num_classes'])
@@ -63,48 +66,27 @@ class MLP_classifier(pl.LightningModule):
 
         preds = F.softmax(predictions, dim=1).argmax(dim=1)
         self.test_acc(preds, labels)
-        self.log("Test_acc", self.test_acc, on_epoch=True, on_step=True)
+        # self.log("Test_acc", self.test_acc, on_epoch=True, on_step=True)
+        self.test_prediction_labels.extend(preds.cpu().numpy())
+        self.test_labels.extend(labels.cpu().numpy())
         
-        for pred, label in zip(preds,labels):
-            self.preds_labels.append([pred, label])
 
 
     def on_test_epoch_end(self):
 
-        class_correct = {str(label): 0 for label in range(self.num_classes)}
-        label_count = {str(label): 0 for label in range(self.num_classes)}
-        class_acc_dict = {}
-        mapping = {
-            '0' : "AMD",
-            '1': "Cataract",
-            '2': "DR",
-            '3' : "Myopia",
-            '4' : "Glaucoma",
-            '5' : "Normal"
-        }
-
-        for preds_labels in self.preds_labels:
-            pred = preds_labels[0].item()
-            label = preds_labels[1].item()
-
-            if label == pred:
-                class_correct[str(label)] = class_correct.get(str(label), 0) + 1
-            label_count[str(label)] = label_count.get(str(label), 0) + 1
-
-        class_correct = dict(sorted(class_correct.items()))
-        label_count = dict(sorted(label_count.items()))
+       
+        target_names = ['AMD','Cataract','DR','Glaucoma','Myopia','Normal']
+        per_classes_acc = {name: accuracy_score(np.array(self.test_labels) == i, np.array(self.test_prediction_labels) == i) for i, name in enumerate(target_names)}
+        self.log_dict(per_classes_acc)
+        total_acc = 0
+        for key,value in per_classes_acc.items():
+            total_acc += value
         
-        print(class_correct, label_count)
-        for key1, key2 in zip(class_correct, label_count):
-            correct = class_correct[key1]
-            count = label_count[key2]
+        avg_acc = total_acc/self.num_classes
+        self.log("Accuracy_avg_class", avg_acc)
+        
 
-            class_accuracy = 100 * (correct / count)
-            class_acc_dict[key1] = class_accuracy
-            print(f"For {mapping[key1]} accuracy is: {class_accuracy}")
-        self.log_dict(class_acc_dict)
-
-        self.preds_labels.clear()
+        
 
 
     def configure_optimizers(self):

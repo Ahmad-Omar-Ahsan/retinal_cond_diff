@@ -129,6 +129,37 @@ def pipeline(config):
         config['exp']['file_path_labels'] = dm.test.imgs
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.test(model=Pretrained_DDPM_lightning, dataloaders=dm.test_dataloader() )
+    elif config['exp']['training_type'] == 'predict':
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_loss',
+                                              verbose=False,
+                                              save_last=True,
+                                              save_top_k=config['exp']['save_top_k'],
+                                              save_weights_only=False,
+                                              mode='min',
+                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.5f}"
+                                              )
+        trainer = pl.Trainer(
+            logger=logger,
+            log_every_n_steps=config['exp']['log_every_n_steps'],
+            devices=config['exp']['device'],
+            min_epochs = config['hparams']['min_epochs'],
+            max_epochs = config['hparams']['max_epochs'],
+            num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
+            accelerator=config['exp']['accelerator'],
+            callbacks=[checkpoint_callback],
+            precision='16-mixed',
+            # profiler='pytorch',
+            accumulate_grad_batches=8
+        )
+        os.makedirs(config['exp']['csv_dir'],exist_ok=True)
+        dm = Retinal_Cond_Lightning_Split(
+            config=config
+        )
+        dm.setup(stage='test')
+        config['exp']['file_path_labels'] = dm.test.imgs
+        Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
+        trainer.predict(model=Pretrained_DDPM_lightning, dataloaders=dm.test_dataloader() )
     elif config['exp']['training_type'] == "mlp":
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
