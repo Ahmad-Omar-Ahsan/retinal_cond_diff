@@ -229,6 +229,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.csv_information = []
         self.test_index = 0
         self.scores_dict = {}
+        self.target_names = config['hparams']['target_names']
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
         images, labels = batch
@@ -377,7 +378,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             predictions.append(self.scores_dict[name]['test_label'])
             labels.append(self.scores_dict[name]['predicted_label'])
 
-        target_names = ['AMD','Cataract','DR','Glaucoma','Myopia','Normal']
+        # target_names = ['AMD','Cataract','DR','Glaucoma','Myopia','Normal']
+        target_names = self.target_names
         per_classes_acc = {name: accuracy_score(np.array(labels) == i, np.array(predictions) == i) for i, name in enumerate(target_names)}
         self.log_dict(per_classes_acc)
         print(per_classes_acc)
@@ -423,19 +425,21 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             test_image = images.to(self.device)
             test_image = images.repeat(self.num_classes,1,1,1)
             error = [0] * self.num_classes * len(filenames)
+
+            noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
+            noise = torch.repeat_interleave(noise,len(filenames) * self.num_classes,dim=0)
+               
             
 
             for r in range(self.runs):
-                timesteps = torch.randint(0, self.scheduler.num_train_timesteps,(1,),device=self.device).long()
+                timesteps = torch.tensor([r],device=self.device).long()
 
                 for _, filename in enumerate(filenames):
                     self.scores_dict[filename]['timestep'].append(timesteps.item())
 
                 timesteps=torch.repeat_interleave(timesteps,self.num_classes * len(filenames),dim=0)
                 
-                noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
-                noise = torch.repeat_interleave(noise,len(filenames) * self.num_classes,dim=0)
-               
+                
                 
                 conditions = torch.repeat_interleave(classes, len(filenames), dim=0)
                 output = self.inferer(inputs=test_image, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=conditions)
