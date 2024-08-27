@@ -11,43 +11,21 @@ from torchvision.utils import make_grid, save_image
 import copy
 import numpy as np
 import time
+import pickle
 
-def predict(config, test_image, diffusion_module, device):
-    classes = torch.arange(6).to(device)
-    class_errors = []
-    # test_image = torch.unsqueeze(test_image, dim=0).to(device)
-    test_image = torch.repeat_interleave(test_image, 6
-                                            ,dim=0)
-    error = [0,0,0,0,0,0]
-    
-
-    for r in range(config['hparams']['runs']):
-        timesteps = torch.randint(0, diffusion_module.scheduler.num_train_timesteps,(1,),device=device).long()
-        timesteps=torch.repeat_interleave(timesteps,diffusion_module.batch_size,dim=0)
-
-        noise = torch.randn((1, diffusion_module.in_channels , diffusion_module.image_h, diffusion_module.image_w)).to(device)
-        noise = torch.repeat_interleave(noise,6,dim=0)
-        
-        for c in range(0, 6, 6):
-            conditions = classes[c: c+6]
-            output = diffusion_module.inferer(inputs=test_image, diffusion_model=diffusion_module.model, noise=noise, timesteps=timesteps, conditioning=conditions)
-            value = diffusion_module.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1).to(device)
-            error[c: 6] = value.cpu().numpy()
-        
-        class_errors.append(copy.deepcopy(error))
-
-    
-    np_class_errors = np.array(class_errors)
-    mean_error_classes = np.mean(np_class_errors, axis=0)
-    min_error_index = np.argmin(mean_error_classes, axis=0)
-    return min_error_index
-
+def predict(filepath, config):
+    with open(config['exp']['trial_pickle_file'], 'rb') as pickle_file:
+        trials_1000= pickle.load(pickle_file)
+    prediction_dict = trials_1000[filepath]
+    prediction = prediction_dict['predicted_label']
+    return prediction
 
 def generate_counterfactuals(config):
     dm = Retinal_Cond_Lightning_Split(
             config=config
     )
     dm.setup('test')
+    file_paths = dm.test.imgs
     step_size =  config['hparams']['num_train_timesteps'] // config['hparams']['num_inference_timesteps']
     diffusion_module = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
     latent_space_depth = int(config['hparams']['denoising_timestep'])
@@ -63,11 +41,17 @@ def generate_counterfactuals(config):
             label = label.to(device)
             image = image.to(device)
             current_img = image.to(device)
-            pred = predict(config, image, diffusion_module, device)
-            print(f"Label:{label.item()}, Prediction: {pred}")
+            file_path = file_paths[count][0]
+            count += 1
+            pred = predict(file_path, config)
+            pred = torch.as_tensor([pred]).to(device)
+            image_path = os.path.join(config['exp']['counterfactual_dir'], f"A_{label.item()}_P_{pred.item()}_reconstructed_{count}.png")
+            print(f"Label:{label.item()}, Prediction: {pred.item()}")
+            if os.path.exists(image_path):
+                print(f"Path exists: {image_path}")
+                continue
             diffusion_module.model = diffusion_module.model.to(device)
             diffusion_module.scheduler_DDIM.clip_sample = False
-            pred = torch.as_tensor([pred]).to(device)
             for i in progress_bar:
                 t = i
                 
@@ -80,8 +64,8 @@ def generate_counterfactuals(config):
 
             conditions = torch.arange(6).to(device)
             diffusion_module.scheduler_DDIM.clip_sample = False
-            label_dir = os.path.join(config['exp']['counterfactual_dir'], str(label.item()))
-            os.makedirs(label_dir, exist_ok=True)
+            # label_dir = os.path.join(config['exp']['counterfactual_dir'], str(label.item()))
+            # os.makedirs(label_dir, exist_ok=True)
 
             for t in np.arange(config['hparams']['denoising_timestep'], -step_size, -step_size):
                 timesteps = torch.Tensor((t,)).to(device)
@@ -100,23 +84,24 @@ def generate_counterfactuals(config):
             # dr_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_dr_count_{count}.png")
             # glaucoma_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_glaucoma_count_{count}.png")
             # myopia_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_myopia_count_{count}.png")
-            normal_image_path = os.path.join(label_dir,f"Label_{label.item()}_normal_count_{count}.png")
-            original_image_path = os.path.join(label_dir,f"Label_{label.item()}_original_image_count_{count}.png")
-            # save_image(amd,fp=amd_image_path)
-            # save_image(cataract,fp=cataract_image_path)
-            # save_image(dr,fp=dr_image_path)
-            # save_image(glaucoma,fp=glaucoma_image_path)
-            # save_image(myopia, fp=myopia_image_path)
-            save_image(normal,fp=normal_image_path)
-            save_image(image, fp=original_image_path)
+            # normal_image_path = os.path.join(label_dir,f"Label_{label.item()}_normal_count_{count}.png")
+            # original_image_path = os.path.join(label_dir,f"Label_{label.item()}_original_image_count_{count}.png")
+            # # save_image(amd,fp=amd_image_path)
+            # # save_image(cataract,fp=cataract_image_path)
+            # # save_image(dr,fp=dr_image_path)
+            # # save_image(glaucoma,fp=glaucoma_image_path)
+            # # save_image(myopia, fp=myopia_image_path)
+            # save_image(normal,fp=normal_image_path)
+            # save_image(image, fp=original_image_path)
 
-            concat_images = torch.concat((image, current_img_multiple),dim=0)
+            concat_images = torch.concat((image, latent_img, current_img_multiple),dim=0)
             grid = make_grid(concat_images)
-            image_path = os.path.join(label_dir,f"Label_{label.item()}_pred_{pred.item()}_count_{count}.png")
+            
+            
             save_image(grid, fp=image_path)
-            count += 1
             end = time.time()
             print(f"Elasped time: {end-start}s.")
+            print(f"Saved: {image_path}")
 
             
 

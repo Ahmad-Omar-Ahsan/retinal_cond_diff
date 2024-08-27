@@ -496,7 +496,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
         target_names = ['AMD','Cataract','DR','Glaucoma','Myopia','Normal']
         per_classes_acc = {name: accuracy_score(np.array(labels) == i, np.array(predictions) == i) for i, name in enumerate(target_names)}
-        self.log_dict(per_classes_acc)
+        # self.log_dict(per_classes_acc)
         print(per_classes_acc)
         total_acc = 0
         for _, value in per_classes_acc.items():
@@ -504,7 +504,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
         avg_acc = total_acc/self.num_classes
         print(f"Average accuracy: {avg_acc}")
-        self.log("Test acc (average per class)", avg_acc)
+        # self.log("Test acc (average per class)", avg_acc)
 
     # def predict_step(self,batch,batch_idx):
     #     accuracy = []

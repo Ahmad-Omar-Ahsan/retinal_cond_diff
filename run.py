@@ -96,7 +96,8 @@ def pipeline(config):
         dm = Retinal_Cond_Lightning_Split(
             config=config
         )
-        Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
+        Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'],  config=config, strict=False)
+        Pretrained_DDPM_lightning.model.num_class_embeds = config['hparams']['num_classes']
         trainer.fit(model=Pretrained_DDPM_lightning, datamodule=dm)
     elif config['exp']['training_type'] == 'test':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
