@@ -183,7 +183,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             use_flash_attention=config['hparams']['DiffusionModelUnet']['use_flash_attention'],
 
         )
-        
+        self.num_classes = config['hparams']['num_classes']
 
         self.scheduler = DDPMScheduler(
             num_train_timesteps=config['hparams']['DDPMScheduler']['num_train_timesteps'],
@@ -210,7 +210,6 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.image_w = config['hparams']['image_w']
         
         self.batches = []  
-        self.num_classes = config['hparams']['DiffusionModelUnet']['num_class_embeds']
         self.classes = torch.arange(self.num_classes)
 
         noise = torch.randn((1, self.in_channels , self.image_h, self.image_w))
@@ -261,7 +260,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
     def on_validation_epoch_end(self):
 
         
-        labels = torch.arange(6).to(self.device)
+        labels = torch.arange(self.num_classes).to(self.device)
         current_epoch = self.current_epoch + 1
         self.noise = self.noise.to(self.device)
         if current_epoch % self.config['hparams']['validation_sample_inspect_epoch'] == 0:
@@ -393,133 +392,22 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         
 
 
-    def predict_step(self,batch,batch_idx):
-        accuracy = []
-        timestep_list = []
-        filepath_labels = self.config['exp']['file_path_labels'][batch_idx*self.batch_size:(batch_idx+1)*self.batch_size]
-        # filepaths_labels = self.dm.dataloader.dataset.imgs
-        filename_list = [x[0] for x in filepath_labels]
-        classes = self.classes.to(self.device)
-        image_list = batch[0]
-        label_list = batch[1]
-        
-        for i in range(0, len(filename_list), self.batch_size):
-        # for test_image, test_label,filename in zip(image_list, label_list,filenames):
-            filenames = filename_list[self.batch_size*i: self.batch_size*(i+1)]
-            testlabels = label_list[self.batch_size*i: self.batch_size*(i+1)]
-            images = image_list[self.batch_size*i: self.batch_size*(i+1)]
-           
-            self.scores_dict.update({filename: {} for filename in filenames})
-
-            
-            for test_count,filename in enumerate(filenames):
-                
-                self.scores_dict[filename]['test_label'] = testlabels[test_count].item()
-                test_count += 1
-                self.scores_dict[filename]['class_errors_each_trial'] = []
-                self.scores_dict[filename]['timestep'] = []
-
-            
-
-            self.test_index += 1
-            test_image = images.to(self.device)
-            test_image = images.repeat(self.num_classes,1,1,1)
-            error = [0] * self.num_classes * len(filenames)
-
-            noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
-            noise = torch.repeat_interleave(noise,len(filenames) * self.num_classes,dim=0)
-               
-            
-
-            for r in range(self.runs):
-                timesteps = torch.tensor([r],device=self.device).long()
-
-                for _, filename in enumerate(filenames):
-                    self.scores_dict[filename]['timestep'].append(timesteps.item())
-
-                timesteps=torch.repeat_interleave(timesteps,self.num_classes * len(filenames),dim=0)
-                
-                
-                
-                conditions = torch.repeat_interleave(classes, len(filenames), dim=0)
-                output = self.inferer(inputs=test_image, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=conditions)
-                losses = self.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1).to(self.device)
-                error = losses.cpu().numpy()
-                
-                error_lists = [error[i::len(filenames)] for i in range(len(filenames))]
-                error_count = 0
-                for filename in filenames:
-                    if error_count < len(error_lists):
-                        self.scores_dict[filename]['class_errors_each_trial'].append(error_lists[error_count])
-                        error_count += 1
-
-                
-            for filename in filenames:
-
-                np_class_errors = np.array(self.scores_dict[filename]['class_errors_each_trial'])
-                mean_error_classes = np.mean(np_class_errors, axis=0)
-                min_error_index = np.argmin(mean_error_classes, axis=0) 
-                self.scores_dict[filename]['predicted_label'] = min_error_index.item()
-                accuracy.append((min_error_index == self.scores_dict[filename]['test_label'])* 1.0)
-                # self.class_acc.append([min_error_index, self.scores_dict[filename]['test_label']])
-                csv_info = [filename, min_error_index.item(), self.scores_dict[filename]['test_label']]
-                csv_info.extend(mean_error_classes.tolist())
-                self.csv_information.append(csv_info)
-            
-        
-        accuracy = torch.tensor(accuracy)
-        classification_acc = torch.mean(accuracy)
-        self.test_outputs.append(classification_acc)
-
-
-    def on_predict_epoch_end(self):
-        columns = ["Image", "Predicted Label", "Test Label", "AMD mean score", "Cataract mean score", "DR mean score",
-                   "Glaucoma mean score", "Myopia mean score", "Normal mean score"]
-
-        df = pd.DataFrame(self.csv_information, columns=columns)
-        df.to_csv(f"{self.config['exp']['csv_dir']}/Test_trial_{self.runs}_seed_{self.seed}.csv",index=False)
-        with open(f"{self.config['exp']['csv_dir']}/Test_trial_{self.runs}_seed_{self.seed}.pkl", 'wb') as pickle_file:
-            pickle.dump(self.scores_dict, pickle_file)
-        class_score = torch.tensor(self.test_outputs)
-        score = torch.mean(class_score)
-        print(f"Classification score : {score.item()}%")
-        self.log("Test acc (subset accuracy)", score)
-
-
-        
-        self.test_outputs.clear()
-        predictions = []
-        labels = []
-        for name, _ in self.scores_dict.items():
-            predictions.append(self.scores_dict[name]['test_label'])
-            labels.append(self.scores_dict[name]['predicted_label'])
-
-        target_names = ['AMD','Cataract','DR','Glaucoma','Myopia','Normal']
-        per_classes_acc = {name: accuracy_score(np.array(labels) == i, np.array(predictions) == i) for i, name in enumerate(target_names)}
-        # self.log_dict(per_classes_acc)
-        print(per_classes_acc)
-        total_acc = 0
-        for _, value in per_classes_acc.items():
-            total_acc += value
-
-        avg_acc = total_acc/self.num_classes
-        print(f"Average accuracy: {avg_acc}")
-        # self.log("Test acc (average per class)", avg_acc)
-
     # def predict_step(self,batch,batch_idx):
     #     accuracy = []
+    #     timestep_list = []
     #     filepath_labels = self.config['exp']['file_path_labels'][batch_idx*self.batch_size:(batch_idx+1)*self.batch_size]
+    #     # filepaths_labels = self.dm.dataloader.dataset.imgs
     #     filename_list = [x[0] for x in filepath_labels]
     #     classes = self.classes.to(self.device)
     #     image_list = batch[0]
     #     label_list = batch[1]
         
     #     for i in range(0, len(filename_list), self.batch_size):
+    #     # for test_image, test_label,filename in zip(image_list, label_list,filenames):
     #         filenames = filename_list[self.batch_size*i: self.batch_size*(i+1)]
     #         testlabels = label_list[self.batch_size*i: self.batch_size*(i+1)]
     #         images = image_list[self.batch_size*i: self.batch_size*(i+1)]
            
-    #         filename_length = len(filenames)
     #         self.scores_dict.update({filename: {} for filename in filenames})
 
             
@@ -527,43 +415,54 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                 
     #             self.scores_dict[filename]['test_label'] = testlabels[test_count].item()
     #             test_count += 1
+    #             self.scores_dict[filename]['class_errors_each_trial'] = []
+    #             self.scores_dict[filename]['timestep'] = []
 
             
 
     #         self.test_index += 1
     #         test_image = images.to(self.device)
-    #         current_image = test_image.repeat(self.num_classes,1,1,1)
+    #         test_image = images.repeat(self.num_classes,1,1,1)
+    #         error = [0] * self.num_classes * len(filenames)
+
+    #         noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
+    #         noise = torch.repeat_interleave(noise,len(filenames) * self.num_classes,dim=0)
+               
             
-    #         conditions = torch.repeat_interleave(classes, filename_length, dim=0)
 
-    #         for t in range(0, self.latent_space_depth + self.step_size, self.step_size):
-    #             timesteps = torch.Tensor((t,)).to(self.device)
-    #             timesteps = torch.repeat_interleave(timesteps, self.num_classes * filename_length,dim=0)
-    #             model_output = self.model(current_image, timesteps=timesteps, class_labels=conditions).to(self.device)
-    #             current_image,_ = self.scheduler_DDIM.reversed_step(model_output, t, current_image)
-            
-    #         for t in np.arange(self.latent_space_depth, -self.step_size, -self.step_size):
-    #             timesteps = torch.Tensor((t,)).to(self.device)
-    #             timesteps=torch.repeat_interleave(timesteps, self.num_classes * filename_length,dim=0)
-    #             model_output = self.model(current_image, timesteps=timesteps, class_labels=conditions).to(self.device)
-    #             current_image, _ = self.scheduler_DDIM.step(model_output, t, current_image)
+    #         for r in range(self.runs):
+    #             timesteps = torch.tensor([r],device=self.device).long()
 
+    #             for _, filename in enumerate(filenames):
+    #                 self.scores_dict[filename]['timestep'].append(timesteps.item())
 
-    #         for i in range(len(test_image)):
-    #             image = test_image[i:(i+1)]
-    #             image = torch.repeat_interleave(image, self.num_classes, dim=0)
-    #             mse_values = self.criterion(current_image[i::filename_length], image,reduction='none').mean(dim=(1,2,3)).view(-1).to(self.device)
-    #             min_index = torch.argmin(mse_values)
-    #             self.scores_dict[filenames[i]]['predicted_label'] = min_index.item()
-
+    #             timesteps=torch.repeat_interleave(timesteps,self.num_classes * len(filenames),dim=0)
+                
+                
+                
+    #             conditions = torch.repeat_interleave(classes, len(filenames), dim=0)
+    #             output = self.inferer(inputs=test_image, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=conditions)
+    #             losses = self.criterion(noise, output,reduction='none').mean(dim=(1,2,3)).view(-1).to(self.device)
+    #             error = losses.cpu().numpy()
+                
+    #             error_lists = [error[i::len(filenames)] for i in range(len(filenames))]
+    #             error_count = 0
+    #             for filename in filenames:
+    #                 if error_count < len(error_lists):
+    #                     self.scores_dict[filename]['class_errors_each_trial'].append(error_lists[error_count])
+    #                     error_count += 1
 
                 
     #         for filename in filenames:
 
-    #             min_error_index = self.scores_dict[filename]['predicted_label'] 
+    #             np_class_errors = np.array(self.scores_dict[filename]['class_errors_each_trial'])
+    #             mean_error_classes = np.mean(np_class_errors, axis=0)
+    #             min_error_index = np.argmin(mean_error_classes, axis=0) 
+    #             self.scores_dict[filename]['predicted_label'] = min_error_index.item()
     #             accuracy.append((min_error_index == self.scores_dict[filename]['test_label'])* 1.0)
     #             # self.class_acc.append([min_error_index, self.scores_dict[filename]['test_label']])
-    #             csv_info = [filename, min_error_index, self.scores_dict[filename]['test_label']]
+    #             csv_info = [filename, min_error_index.item(), self.scores_dict[filename]['test_label']]
+    #             csv_info.extend(mean_error_classes.tolist())
     #             self.csv_information.append(csv_info)
             
         
@@ -573,16 +472,18 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
 
     # def on_predict_epoch_end(self):
-    #     columns = ["Image", "Predicted Label", "Test Label"]
+    #     columns = ["Image", "Predicted Label", "Test Label", "AMD mean score", "Cataract mean score", "DR mean score",
+    #                "Glaucoma mean score", "Myopia mean score", "Normal mean score"]
 
     #     df = pd.DataFrame(self.csv_information, columns=columns)
-    #     df.to_csv(f"{self.config['exp']['csv_dir']}/Test_seed_{self.seed}.csv",index=False)
-    #     with open(f"{self.config['exp']['csv_dir']}/Test_seed_{self.seed}.pkl", 'wb') as pickle_file:
+    #     df.to_csv(f"{self.config['exp']['csv_dir']}/Test_trial_{self.runs}_seed_{self.seed}.csv",index=False)
+    #     with open(f"{self.config['exp']['csv_dir']}/Test_trial_{self.runs}_seed_{self.seed}.pkl", 'wb') as pickle_file:
     #         pickle.dump(self.scores_dict, pickle_file)
     #     class_score = torch.tensor(self.test_outputs)
     #     score = torch.mean(class_score)
     #     print(f"Classification score : {score.item()}%")
-    #     # self.log("Test accuracy", score)
+    #     self.log("Test acc (subset accuracy)", score)
+
 
         
     #     self.test_outputs.clear()
@@ -594,7 +495,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
     #     target_names = ['AMD','Cataract','DR','Glaucoma','Myopia','Normal']
     #     per_classes_acc = {name: accuracy_score(np.array(labels) == i, np.array(predictions) == i) for i, name in enumerate(target_names)}
-    #     self.log_dict(per_classes_acc)
+    #     # self.log_dict(per_classes_acc)
     #     print(per_classes_acc)
     #     total_acc = 0
     #     for _, value in per_classes_acc.items():
@@ -602,7 +503,106 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
     #     avg_acc = total_acc/self.num_classes
     #     print(f"Average accuracy: {avg_acc}")
-    #     # self.log("Test acc (average per class)", avg_acc)
+        # self.log("Test acc (average per class)", avg_acc)
+
+    def predict_step(self,batch,batch_idx):
+
+        accuracy = []
+        filepath_labels = self.config['exp']['file_path_labels'][batch_idx*self.batch_size:(batch_idx+1)*self.batch_size]
+        filename_list = [x[0] for x in filepath_labels]
+        classes = self.classes.to(self.device)
+        image_list = batch[0]
+        label_list = batch[1]
+        
+        for i in range(0, len(filename_list), self.batch_size):
+            filenames = filename_list[self.batch_size*i: self.batch_size*(i+1)]
+            testlabels = label_list[self.batch_size*i: self.batch_size*(i+1)]
+            images = image_list[self.batch_size*i: self.batch_size*(i+1)]
+           
+            filename_length = len(filenames)
+            self.scores_dict.update({filename: {} for filename in filenames})
+
+            
+            for test_count,filename in enumerate(filenames):
+                
+                self.scores_dict[filename]['test_label'] = testlabels[test_count].item()
+                test_count += 1
+
+            
+
+            self.test_index += 1
+            test_image = images.to(self.device)
+            current_image = test_image.repeat(self.num_classes,1,1,1) # [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3]
+            
+            conditions = torch.repeat_interleave(classes, filename_length, dim=0) # [1, 1, 1, 2, 2, 2, 3, 3, 3]
+
+            for t in range(0, self.latent_space_depth + self.step_size, self.step_size):
+                timesteps = torch.Tensor((t,)).to(self.device)
+                timesteps = torch.repeat_interleave(timesteps, self.num_classes * filename_length,dim=0)
+                model_output = self.model(current_image, timesteps=timesteps, class_labels=conditions).to(self.device)
+                current_image,_ = self.scheduler_DDIM.reversed_step(model_output, t, current_image)
+            
+            for t in np.arange(self.latent_space_depth, -self.step_size, -self.step_size):
+                timesteps = torch.Tensor((t,)).to(self.device)
+                timesteps = torch.repeat_interleave(timesteps, self.num_classes * filename_length,dim=0)
+                model_output = self.model(current_image, timesteps=timesteps, class_labels=conditions).to(self.device)
+                current_image, _ = self.scheduler_DDIM.step(model_output, t, current_image)
+
+
+            for i in range(len(test_image)):
+                image = test_image[i].unsqueeze(dim=0)
+                image = torch.repeat_interleave(image, self.num_classes, dim=0) # [1, 1, 1, 1, 1, 1]
+                mse_values = self.criterion(current_image[i::filename_length], image,reduction='none').mean(dim=(1,2,3)).view(-1).to(self.device)
+                min_index = torch.argmin(mse_values)
+                self.scores_dict[filenames[i]]['predicted_label'] = min_index.item()
+
+
+                
+            for filename in filenames:
+
+                min_error_index = self.scores_dict[filename]['predicted_label'] 
+                accuracy.append((min_error_index == self.scores_dict[filename]['test_label'])* 1.0)
+                # self.class_acc.append([min_error_index, self.scores_dict[filename]['test_label']])
+                csv_info = [filename, min_error_index, self.scores_dict[filename]['test_label']]
+                self.csv_information.append(csv_info)
+            
+        
+        accuracy = torch.tensor(accuracy)
+        classification_acc = torch.mean(accuracy)
+        self.test_outputs.append(classification_acc)
+
+
+    def on_predict_epoch_end(self):
+        columns = ["Image", "Predicted Label", "Test Label"]
+
+        df = pd.DataFrame(self.csv_information, columns=columns)
+        df.to_csv(f"{self.config['exp']['csv_dir']}/Test_seed_{self.seed}.csv",index=False)
+        with open(f"{self.config['exp']['csv_dir']}/Test_seed_{self.seed}.pkl", 'wb') as pickle_file:
+            pickle.dump(self.scores_dict, pickle_file)
+        class_score = torch.tensor(self.test_outputs)
+        score = torch.mean(class_score)
+        print(f"Classification score : {score.item()}%")
+     
+
+        
+        self.test_outputs.clear()
+        predictions = []
+        labels = []
+        for name, _ in self.scores_dict.items():
+            predictions.append(self.scores_dict[name]['test_label'])
+            labels.append(self.scores_dict[name]['predicted_label'])
+
+        target_names = self.target_names
+        per_classes_acc = {name: accuracy_score(np.array(labels) == i, np.array(predictions) == i) for i, name in enumerate(target_names)}
+        
+        print(per_classes_acc)
+        total_acc = 0
+        for _, value in per_classes_acc.items():
+            total_acc += value
+
+        avg_acc = total_acc/self.num_classes
+        print(f"Average accuracy: {avg_acc}")
+    
         
 
     def configure_optimizers(self):
