@@ -7,7 +7,7 @@ from collections import defaultdict
 from generative.inferers import DiffusionInferer
 from generative.networks.nets import DiffusionModelUNet
 from generative.networks.schedulers import DDPMScheduler, DDIMScheduler
-from torchvision.utils import make_grid
+from torchvision.utils import make_grid, save_image
 import torch.nn.functional as F
 from torch.cuda.amp import  autocast
 from tqdm import tqdm
@@ -534,38 +534,49 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             test_image = images.to(self.device)
             current_image = test_image.repeat(self.num_classes,1,1,1) # [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3]
             
+            latent_image = current_image
             conditions = torch.repeat_interleave(classes, filename_length, dim=0) # [1, 1, 1, 2, 2, 2, 3, 3, 3]
+            # conditions = classes.repeat(filename_length)
+            self.scheduler_DDIM.clip_sample = False
 
             for t in range(0, self.latent_space_depth + self.step_size, self.step_size):
                 timesteps = torch.Tensor((t,)).to(self.device)
                 timesteps = torch.repeat_interleave(timesteps, self.num_classes * filename_length,dim=0)
-                model_output = self.model(current_image, timesteps=timesteps, class_labels=conditions).to(self.device)
-                current_image,_ = self.scheduler_DDIM.reversed_step(model_output, t, current_image)
+                model_output = self.model(latent_image, timesteps=timesteps, class_labels=conditions).to(self.device)
+                latent_image,_ = self.scheduler_DDIM.reversed_step(model_output, t, latent_image)
             
+            reconstructed_image = latent_image
+
             for t in np.arange(self.latent_space_depth, -self.step_size, -self.step_size):
                 timesteps = torch.Tensor((t,)).to(self.device)
                 timesteps = torch.repeat_interleave(timesteps, self.num_classes * filename_length,dim=0)
-                model_output = self.model(current_image, timesteps=timesteps, class_labels=conditions).to(self.device)
-                current_image, _ = self.scheduler_DDIM.step(model_output, t, current_image)
+                model_output = self.model(reconstructed_image, timesteps=timesteps, class_labels=conditions).to(self.device)
+                reconstructed_image, _ = self.scheduler_DDIM.step(model_output, t, reconstructed_image)
 
 
             for i in range(len(test_image)):
                 image = test_image[i].unsqueeze(dim=0)
                 image = torch.repeat_interleave(image, self.num_classes, dim=0) # [1, 1, 1, 1, 1, 1]
-                mse_values = self.criterion(current_image[i::filename_length], image,reduction='none').mean(dim=(1,2,3)).view(-1).to(self.device)
+                mse_values = self.criterion(reconstructed_image[i::filename_length], image,reduction='none').mean(dim=(1,2,3)).view(-1).to(self.device)
+                concat_images = torch.concat((test_image[i].unsqueeze(dim=0), reconstructed_image[i::filename_length]))
+                
+                grid = make_grid(concat_images)
                 min_index = torch.argmin(mse_values)
                 self.scores_dict[filenames[i]]['predicted_label'] = min_index.item()
-
+               
+                image_path = os.path.join(self.config['exp']['counterfactual_dir'], f"A_{self.scores_dict[filenames[i]]['test_label']}_P_{self.scores_dict[filenames[i]]['predicted_label'] }.png")
+                os.makedirs(self.config['exp']['counterfactual_dir'], exist_ok=True)
+                save_image(grid, fp=image_path)
 
                 
-            for filename in filenames:
+            for _, filename in enumerate(filenames):
 
                 min_error_index = self.scores_dict[filename]['predicted_label'] 
                 accuracy.append((min_error_index == self.scores_dict[filename]['test_label'])* 1.0)
                 # self.class_acc.append([min_error_index, self.scores_dict[filename]['test_label']])
                 csv_info = [filename, min_error_index, self.scores_dict[filename]['test_label']]
                 self.csv_information.append(csv_info)
-            
+        
         
         accuracy = torch.tensor(accuracy)
         classification_acc = torch.mean(accuracy)
