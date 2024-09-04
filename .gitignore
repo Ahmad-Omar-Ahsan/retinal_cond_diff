@@ -12,3 +12,5 @@ conf.yaml
 *.pth
 *.csv
 *.ipynb
+*.pt
+ckpt_loader_saver.py
