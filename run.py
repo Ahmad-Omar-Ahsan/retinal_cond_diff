@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
 import torch
 import yaml
-from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning_Split, load_model, Pickle_Lightning
+from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning_Split,  Pickle_Lightning, load_finetune_checkpoint
 from model_architecture import LightningDDPM_monai,  Pretrained_LightningDDPM_monai,Conditional_DDIM_monai,MLP_classifier
 
 
@@ -99,6 +99,37 @@ def pipeline(config):
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'],  config=config, strict=False)
         Pretrained_DDPM_lightning.model.num_class_embeds = config['hparams']['num_classes']
         trainer.fit(model=Pretrained_DDPM_lightning, datamodule=dm)
+
+    elif config['exp']['training_type'] == 'ROP':
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_loss',
+                                              verbose=False,
+                                              save_last=True,
+                                              save_top_k=config['exp']['save_top_k'],
+                                              save_weights_only=False,
+                                              mode='min',
+                                              filename="ROP-{epoch:02d}-{step}-{val_loss:.5f}"
+                                              )
+        trainer = pl.Trainer(
+            logger=logger,
+            log_every_n_steps=config['exp']['log_every_n_steps'],
+            devices=config['exp']['device'],
+            min_epochs = config['hparams']['min_epochs'],
+            max_epochs = config['hparams']['max_epochs'],
+            num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
+            accelerator=config['exp']['accelerator'],
+            callbacks=[checkpoint_callback],
+            precision='16-mixed',
+            # profiler='pytorch',
+            accumulate_grad_batches=8
+        )
+        dm = Retinal_Cond_Lightning_Split(
+            config=config
+        )
+        config['hparams']['DiffusionModelUnet']['num_class_embeds'] = config['hparams']['num_classes']
+        new_ROP = Pretrained_LightningDDPM_monai(config = config)
+        load_finetune_checkpoint(new_ROP.model, config['exp']['model_ckpt_path']) 
+        trainer.fit(model=new_ROP, datamodule=dm)
     elif config['exp']['training_type'] == 'test':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',

@@ -33,6 +33,7 @@ def generate_counterfactuals(config):
     diffusion_module.scheduler_DDIM.set_timesteps(num_inference_steps=config['hparams']['num_inference_timesteps'])
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     count = 0
+    num_classes = config['hparams']["num_classes"]
     
     
     with torch.no_grad():
@@ -52,17 +53,26 @@ def generate_counterfactuals(config):
                 continue
             diffusion_module.model = diffusion_module.model.to(device)
             diffusion_module.scheduler_DDIM.clip_sample = False
+            current_img= torch.repeat_interleave(current_img, diffusion_module.num_classes
+                                                    ,dim=0)
+            pred = torch.repeat_interleave(pred, diffusion_module.num_classes
+                                                    ,dim=0)
+            # pred = torch.arange(num_classes).to(device)
             for i in progress_bar:
                 t = i
                 
                 model_output = diffusion_module.model(current_img, timesteps=torch.Tensor((t,)).to(device), class_labels=pred).to(device)
                 current_img, _ = diffusion_module.scheduler_DDIM.reversed_step(model_output, t, current_img)
-
+                if t % 10 == 0:
+                    latent_image_path = os.path.join(config['exp']['counterfactual_dir'], f"latent_timestep_{t}.png")
+                    grid = make_grid(current_img,nrow=6)
+                    save_image(grid, fp=latent_image_path)
             latent_img = current_img
-            current_img_multiple = torch.repeat_interleave(current_img, diffusion_module.num_classes
-                                                    ,dim=0)
+            # current_img_multiple = torch.repeat_interleave(current_img, diffusion_module.num_classes
+            #                                         ,dim=0)
+            current_img_multiple = current_img
 
-            conditions = torch.arange(6).to(device)
+            conditions = torch.arange(num_classes).to(device)
             diffusion_module.scheduler_DDIM.clip_sample = False
             # label_dir = os.path.join(config['exp']['counterfactual_dir'], str(label.item()))
             # os.makedirs(label_dir, exist_ok=True)
@@ -71,13 +81,18 @@ def generate_counterfactuals(config):
                 timesteps = torch.Tensor((t,)).to(device)
                 timesteps=torch.repeat_interleave(timesteps,6,dim=0)
                 model_output = diffusion_module.model(current_img_multiple, timesteps=timesteps, class_labels=conditions).to(device)
-                amd, _ = diffusion_module.scheduler_DDIM.step(model_output[0].unsqueeze(dim=0), t, current_img_multiple[0].unsqueeze(dim=0))
-                cataract, _ = diffusion_module.scheduler_DDIM.step(model_output[1].unsqueeze(dim=0), t, current_img_multiple[1].unsqueeze(dim=0))
-                dr, _ = diffusion_module.scheduler_DDIM.step(model_output[2].unsqueeze(dim=0), t, current_img_multiple[2].unsqueeze(dim=0))
-                glaucoma, _ = diffusion_module.scheduler_DDIM.step(model_output[3].unsqueeze(dim=0), t, current_img_multiple[3].unsqueeze(dim=0))
-                myopia, _ = diffusion_module.scheduler_DDIM.step(model_output[4].unsqueeze(dim=0), t, current_img_multiple[4].unsqueeze(dim=0))
-                normal, _ = diffusion_module.scheduler_DDIM.step(model_output[5].unsqueeze(dim=0), t, current_img_multiple[5].unsqueeze(dim=0))
-                current_img_multiple = torch.concat((amd,cataract,dr,glaucoma,myopia,normal))
+                current_img_multiple, _ = diffusion_module.scheduler_DDIM.step(model_output, t, current_img_multiple)
+                if t % 10 == 0:
+                    reconstructed_image_path = os.path.join(config['exp']['counterfactual_dir'], f"reconstructed_{t}.png")
+                    grid = make_grid(current_img_multiple,nrow=6)
+                    save_image(grid, fp=reconstructed_image_path)
+                # amd, _ = diffusion_module.scheduler_DDIM.step(model_output[0].unsqueeze(dim=0), t, current_img_multiple[0].unsqueeze(dim=0))
+                # cataract, _ = diffusion_module.scheduler_DDIM.step(model_output[1].unsqueeze(dim=0), t, current_img_multiple[1].unsqueeze(dim=0))
+                # dr, _ = diffusion_module.scheduler_DDIM.step(model_output[2].unsqueeze(dim=0), t, current_img_multiple[2].unsqueeze(dim=0))
+                # glaucoma, _ = diffusion_module.scheduler_DDIM.step(model_output[3].unsqueeze(dim=0), t, current_img_multiple[3].unsqueeze(dim=0))
+                # myopia, _ = diffusion_module.scheduler_DDIM.step(model_output[4].unsqueeze(dim=0), t, current_img_multiple[4].unsqueeze(dim=0))
+                # normal, _ = diffusion_module.scheduler_DDIM.step(model_output[5].unsqueeze(dim=0), t, current_img_multiple[5].unsqueeze(dim=0))
+                # current_img_multiple = torch.concat((amd,cataract,dr,glaucoma,myopia,normal))
             # images = diffusion_module.inferer.sample(input_noise=current_img_multiple, diffusion_model=diffusion_module.model, scheduler=diffusion_module.scheduler_DDIM, conditioning=conditions)
             # amd_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_amd_count_{count}.png")
             # cataract_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_cataract_count_{count}.png")
@@ -94,7 +109,7 @@ def generate_counterfactuals(config):
             # save_image(normal,fp=normal_image_path)
             # save_image(image, fp=original_image_path)
 
-            concat_images = torch.concat((image, latent_img, current_img_multiple),dim=0)
+            concat_images = torch.concat((image, current_img_multiple),dim=0)
             grid = make_grid(concat_images)
             
             

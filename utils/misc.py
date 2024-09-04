@@ -3,8 +3,6 @@ import numpy as np
 from torch import nn
 import random
 import os
-from generative.networks.nets import DiffusionModelUNet
-from model_architecture import LightningDDPM_monai, LightningDDPMDDIM_monai, Pretrained_LightningDDPM_monai
 
 def seed_everything(seed: int) -> None:
     """Set manual seed.
@@ -32,39 +30,19 @@ def count_params(model: nn.Module) -> int:
     return sum(map(lambda p: p.data.numel(), model.parameters()))
 
 
-def load_model_ckpt(model_ckpt_path: str, config: dict) -> nn.Module:
-   
-    
-    if config['hparams']['pretrained_scheduler_type'] == 'DDPM':
-        l_module = LightningDDPM_monai.load_from_checkpoint(model_ckpt_path)
-    elif config['hparams']['pretrained_scheduler_type'] =='DDPM_DDIM':
-        l_module = LightningDDPMDDIM_monai.load_from_checkpoint(model_ckpt_path)
-    elif config['hparams']['pretrained_scheduler_type'] == 'conditional_DDPM':
-        l_module = Pretrained_LightningDDPM_monai.load_from_checkpoint(model_ckpt_path, config=config)
-        # l_module.model.load_state_dict(unet_weights)
-    
-    return l_module.model
 
 
-def load_model(config: dict) -> nn.Module:
-    """ Load model with hparams
 
-    Args:
-        config (dict): Config file containing hyperparameters
+def load_finetune_checkpoint(model, path):
+    m = torch.load(path)
+    model_dict = model.state_dict()
+    for k in m.keys():
+        if "class_embedding.weight" in k:
+            continue
 
-    Returns:
-        nn.Module: Model
-    """
-    # if 'DiffusionModelUnet' in config['hparams']:
-    #     model = DiffusionModelUNet(
-    #         spatial_dims=config['hparams']['DiffusionModelUnet']['spatial_dims'],
-    #         in_channels=config['hparams']['DiffusionModelUnet']['in_channels'],
-    #         out_channels=config['hparams']['DiffusionModelUnet']['out_channels'],
-    #         num_channels=config['hparams']['DiffusionModelUnet']['num_channels'],
-    #         attention_levels=config['hparams']['DiffusionModelUnet']['attention_levels'],
-    #         num_res_blocks=config['hparams']['DiffusionModelUnet']['num_res_blocks'],
-    #         num_head_channels=config['hparams']['DiffusionModelUnet']['num_head_channels'],
-    #         num_class_embeds=config['hparams']['DiffusionModelUnet']['num_class_embeds']
-    #     )
-    model = load_model_ckpt(model_ckpt_path=config['exp']['model_ckpt_path'],config=config)
-    return model
+        if k in model_dict:
+            pname = k
+            pval = m[k]
+            model_dict[pname] = pval.clone().to(model_dict[pname].device)
+
+    model.load_state_dict(model_dict)

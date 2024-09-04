@@ -506,15 +506,19 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         # self.log("Test acc (average per class)", avg_acc)
 
     def predict_step(self,batch,batch_idx):
-
+        
+        self.scheduler_DDIM.set_timesteps(num_inference_steps=self.config['hparams']['num_inference_timesteps'])
         accuracy = []
         filepath_labels = self.config['exp']['file_path_labels'][batch_idx*self.batch_size:(batch_idx+1)*self.batch_size]
         filename_list = [x[0] for x in filepath_labels]
         classes = self.classes.to(self.device)
         image_list = batch[0]
         label_list = batch[1]
-        
+        os.makedirs(self.config['exp']['counterfactual_dir'], exist_ok=True)
+        self.model = self.model.to(self.device)
+
         for i in range(0, len(filename_list), self.batch_size):
+            
             filenames = filename_list[self.batch_size*i: self.batch_size*(i+1)]
             testlabels = label_list[self.batch_size*i: self.batch_size*(i+1)]
             images = image_list[self.batch_size*i: self.batch_size*(i+1)]
@@ -533,10 +537,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             self.test_index += 1
             test_image = images.to(self.device)
             current_image = test_image.repeat(self.num_classes,1,1,1) # [1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3]
-            
             latent_image = current_image
-            conditions = torch.repeat_interleave(classes, filename_length, dim=0) # [1, 1, 1, 2, 2, 2, 3, 3, 3]
-            # conditions = classes.repeat(filename_length)
+            conditions = torch.repeat_interleave(classes, filename_length, dim=0)
             self.scheduler_DDIM.clip_sample = False
 
             for t in range(0, self.latent_space_depth + self.step_size, self.step_size):
@@ -544,16 +546,28 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                 timesteps = torch.repeat_interleave(timesteps, self.num_classes * filename_length,dim=0)
                 model_output = self.model(latent_image, timesteps=timesteps, class_labels=conditions).to(self.device)
                 latent_image,_ = self.scheduler_DDIM.reversed_step(model_output, t, latent_image)
-            
-            reconstructed_image = latent_image
+                # if t % 10 == 0:
+                    # image_path = os.path.join(self.config['exp']['counterfactual_dir'], f"batch_idx_{batch_idx}_latent_timestep_{t}.png")
+                #     grid = make_grid(latent_image,nrow=filename_length)
+                #     save_image(grid, fp=image_path)
 
+            # reconstructed_image = torch.stack([torch.mean(latent_image[i::filename_length],dim=0) for i in range(len(test_image))],dim=0)
+            # reconstructed_image = reconstructed_image.repeat(self.num_classes, 1, 1, 1)
+            reconstructed_image = latent_image
+            self.scheduler_DDIM.clip_sample = False
+            conditions = torch.repeat_interleave(classes, filename_length, dim=0)
+            
             for t in np.arange(self.latent_space_depth, -self.step_size, -self.step_size):
                 timesteps = torch.Tensor((t,)).to(self.device)
                 timesteps = torch.repeat_interleave(timesteps, self.num_classes * filename_length,dim=0)
                 model_output = self.model(reconstructed_image, timesteps=timesteps, class_labels=conditions).to(self.device)
                 reconstructed_image, _ = self.scheduler_DDIM.step(model_output, t, reconstructed_image)
+                if t % 10 == 0:
+                    image_path = os.path.join(self.config['exp']['counterfactual_dir'], f"batch_idx_{batch_idx}_reconstructed_timestep_{t}.png")
+                    grid = make_grid(reconstructed_image,nrow=filename_length)
+                    save_image(grid, fp=image_path)
 
-
+            
             for i in range(len(test_image)):
                 image = test_image[i].unsqueeze(dim=0)
                 image = torch.repeat_interleave(image, self.num_classes, dim=0) # [1, 1, 1, 1, 1, 1]
@@ -565,7 +579,6 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                 self.scores_dict[filenames[i]]['predicted_label'] = min_index.item()
                
                 image_path = os.path.join(self.config['exp']['counterfactual_dir'], f"A_{self.scores_dict[filenames[i]]['test_label']}_P_{self.scores_dict[filenames[i]]['predicted_label'] }.png")
-                os.makedirs(self.config['exp']['counterfactual_dir'], exist_ok=True)
                 save_image(grid, fp=image_path)
 
                 
@@ -576,7 +589,6 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                 # self.class_acc.append([min_error_index, self.scores_dict[filename]['test_label']])
                 csv_info = [filename, min_error_index, self.scores_dict[filename]['test_label']]
                 self.csv_information.append(csv_info)
-        
         
         accuracy = torch.tensor(accuracy)
         classification_acc = torch.mean(accuracy)
