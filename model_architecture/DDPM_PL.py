@@ -356,8 +356,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
 
     def on_test_epoch_end(self):
-        columns = ["Image", "Predicted Label", "Test Label", "AMD mean score", "Cataract mean score", "DR mean score",
-                   "Glaucoma mean score", "Myopia mean score", "Normal mean score"]
+        columns = ["Image", "Predicted Label", "Test Label"]
+        columns.extend(self.target_names)
 
         df = pd.DataFrame(self.csv_information, columns=columns)
         df.to_csv(f"{self.config['exp']['csv_dir']}/Test_trial_{self.runs}_seed_{self.seed}.csv",index=False)
