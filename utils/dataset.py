@@ -65,11 +65,31 @@ class UK_biobank_retinal(Dataset):
     
     
 
-class ODIR_Dataset(Dataset):
-    def __init__(self, config):
-        super().__init__()
-        self.config = config
 
+
+class Retinal_Predict_dataset(Dataset):
+    def __init__(self, config):
+        self.config = config
+        self.data_dir = self.config['exp']['predict_dir']
+        self.size = self.config['hparams']['batch_size']
+        self.num_classes = self.config['hparams']['num_classes']
+        self.transform = transforms.Compose([transforms.Resize(224),transforms.ToTensor()
+                                             ])
+        self.sample_lists = os.listdir(self.data_dir)
+        self.file_paths = [os.path.join(self.config['exp']['predict_dir'], file) for file in self.sample_lists]
+        
+    def __len__(self):
+        return len(self.sample_lists)
+    
+    def __getitem__(self, index):
+        file_path = self.file_paths[index]
+        sample = Image.open(file_path)
+        sample = sample.convert("RGB")
+        
+        sample = self.transform(sample)
+        return sample
+    
+        
 
 class FakeData_lightning(LightningDataModule):
     def __init__(self, config, size=4, image_size=[3,224,224], num_classes=0):
@@ -97,51 +117,7 @@ class FakeData_lightning(LightningDataModule):
         return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
 
-class Retinal_Cond_Lightning(LightningDataModule):
-    def __init__(self, config):
-        super().__init__()
-        self.config = config
-        self.data_dir = self.config['exp']['data_dir']
-        self.size = self.config['hparams']['batch_size']
-        self.num_classes = self.config['hparams']['num_classes']
-        self.transform = transforms.Compose([transforms.Resize(224),transforms.ToTensor()
-                                             ])
 
-    def setup(self, stage):
-        dataset = ImageFolder(root=self.data_dir, transform=self.transform)
-        targets = dataset.targets
-        train_idx, temp_idx = train_test_split(
-            np.arange(len(targets)),
-            test_size=0.1,
-            shuffle=True,
-            stratify=targets
-        )
-        valid_idx, test_idx = train_test_split(
-            temp_idx,
-            test_size=0.5,
-            shuffle=True,
-            stratify=np.array(targets)[temp_idx]
-        )
-        train_dataset = Subset(dataset, train_idx)
-        valid_dataset = Subset(dataset, valid_idx)
-        test_dataset = Subset(dataset, test_idx)
-        self.train = train_dataset
-        self.test = test_dataset
-        self.val = valid_dataset
-        print(f"Train, val and test length:  {len(self.train), len(self.val), len(self.test)}")
-
-    def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
-    
-    def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
-
-    def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
-    
-    def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
-    
 
 class Retinal_Cond_Lightning_Split(LightningDataModule):
     def __init__(self, config):
@@ -157,13 +133,37 @@ class Retinal_Cond_Lightning_Split(LightningDataModule):
         self.test_dir = os.path.join(self.data_dir, 'test')
 
     def setup(self, stage):
-        train_dataset = ImageFolder(root=self.train_dir, transform=self.transform)
-        valid_dataset = ImageFolder(root=self.val_dir, transform=self.transform)
-        test_dataset = ImageFolder(root=self.test_dir, transform=self.transform)
-        self.train = train_dataset
-        self.test = test_dataset
-        self.val = valid_dataset
-        print(f"Train, val and test length:  {len(self.train), len(self.val), len(self.test)}")
+        if stage == 'predict':
+            predict_dataset = Retinal_Predict_dataset(self.config)
+            self.predict_set = predict_dataset
+            print(f"Predict dataset length: {len(self.predict_set)}")
+        else:
+            dataset = ImageFolder(root=self.data_dir, transform=self.transform)
+            targets = dataset.targets
+            train_idx, temp_idx = train_test_split(
+                np.arange(len(targets)),
+                test_size=0.1,
+                shuffle=True,
+                stratify=targets
+            )
+            valid_idx, test_idx = train_test_split(
+                temp_idx,
+                test_size=0.5,
+                shuffle=True,
+                stratify=np.array(targets)[temp_idx]
+            )
+            if stage == 'fit':
+                train_dataset = Subset(dataset, train_idx)
+                valid_dataset = Subset(dataset, valid_idx)
+                self.train = train_dataset
+                
+                self.val = valid_dataset
+                print(f"Train, val length:  {len(self.train), len(self.val)}")
+            
+            if stage == 'test':
+                test_dataset = Subset(dataset, test_idx)
+                self.test = test_dataset
+                print(f"Test length: {len(self.test)}")
 
     def train_dataloader(self):
         return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], shuffle=True)
@@ -175,7 +175,7 @@ class Retinal_Cond_Lightning_Split(LightningDataModule):
         return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.predict_set, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
 
 
 
