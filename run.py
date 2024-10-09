@@ -42,6 +42,7 @@ def pipeline(config):
         )
         DDPM_lightning = LightningDDPM_monai(config=config)
         trainer.fit(model=DDPM_lightning, datamodule=dm)
+
     elif config['exp']['training_type'] == 'scratch_conditional':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
@@ -70,6 +71,7 @@ def pipeline(config):
         )
         DDIM_lightning = Conditional_DDIM_monai(config=config)
         trainer.fit(model=DDIM_lightning, datamodule=dm)
+
     elif config['exp']['training_type'] == 'pretrained':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
@@ -130,6 +132,7 @@ def pipeline(config):
         new_ROP = Pretrained_LightningDDPM_monai(config = config)
         load_finetune_checkpoint(new_ROP.model, config['exp']['model_ckpt_path']) 
         trainer.fit(model=new_ROP, datamodule=dm)
+
     elif config['exp']['training_type'] == 'test':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
@@ -161,6 +164,7 @@ def pipeline(config):
         config['exp']['file_path_labels'] = dm.test.imgs
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.test(model=Pretrained_DDPM_lightning, dataloaders=dm.test_dataloader() )
+
     elif config['exp']['training_type'] == 'predict':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
@@ -188,10 +192,10 @@ def pipeline(config):
         dm = Retinal_Cond_Lightning_Split(
             config=config
         )
-        dm.setup(stage='test')
-        config['exp']['file_path_labels'] = dm.test.imgs
+        dm.setup(stage='predict')
+        config['exp']['file_path_labels'] = dm.predict_set.file_paths
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
-        trainer.predict(model=Pretrained_DDPM_lightning, dataloaders=dm.test_dataloader() )
+        trainer.predict(model=Pretrained_DDPM_lightning, dataloaders=dm.predict_dataloader() )
     elif config['exp']['training_type'] == "mlp":
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',

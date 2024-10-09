@@ -4,7 +4,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
 import torch
-from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning_Split, load_model, Pickle_Lightning
+from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning_Split, Pickle_Lightning
 from model_architecture import LightningDDPM_monai,  Pretrained_LightningDDPM_monai,Conditional_DDIM_monai,MLP_classifier
 from tqdm import tqdm
 from torchvision.utils import make_grid, save_image
@@ -63,10 +63,10 @@ def generate_counterfactuals(config):
                 
                 model_output = diffusion_module.model(current_img, timesteps=torch.Tensor((t,)).to(device), class_labels=pred).to(device)
                 current_img, _ = diffusion_module.scheduler_DDIM.reversed_step(model_output, t, current_img)
-                if t % 10 == 0:
-                    latent_image_path = os.path.join(config['exp']['counterfactual_dir'], f"latent_timestep_{t}.png")
-                    grid = make_grid(current_img,nrow=6)
-                    save_image(grid, fp=latent_image_path)
+                # if t % 10 == 0:
+                #     latent_image_path = os.path.join(config['exp']['counterfactual_dir'], f"latent_timestep_{t}.png")
+                #     grid = make_grid(current_img,nrow=6)
+                #     save_image(grid, fp=latent_image_path)
             latent_img = current_img
             # current_img_multiple = torch.repeat_interleave(current_img, diffusion_module.num_classes
             #                                         ,dim=0)
@@ -79,13 +79,13 @@ def generate_counterfactuals(config):
 
             for t in np.arange(config['hparams']['denoising_timestep'], -step_size, -step_size):
                 timesteps = torch.Tensor((t,)).to(device)
-                timesteps=torch.repeat_interleave(timesteps,6,dim=0)
+                timesteps=torch.repeat_interleave(timesteps,num_classes,dim=0)
                 model_output = diffusion_module.model(current_img_multiple, timesteps=timesteps, class_labels=conditions).to(device)
                 current_img_multiple, _ = diffusion_module.scheduler_DDIM.step(model_output, t, current_img_multiple)
-                if t % 10 == 0:
-                    reconstructed_image_path = os.path.join(config['exp']['counterfactual_dir'], f"reconstructed_{t}.png")
-                    grid = make_grid(current_img_multiple,nrow=6)
-                    save_image(grid, fp=reconstructed_image_path)
+                # if t % 10 == 0:
+                #     reconstructed_image_path = os.path.join(config['exp']['counterfactual_dir'], f"reconstructed_{t}.png")
+                #     grid = make_grid(current_img_multiple,nrow=num_classes)
+                #     save_image(grid, fp=reconstructed_image_path)
                 # amd, _ = diffusion_module.scheduler_DDIM.step(model_output[0].unsqueeze(dim=0), t, current_img_multiple[0].unsqueeze(dim=0))
                 # cataract, _ = diffusion_module.scheduler_DDIM.step(model_output[1].unsqueeze(dim=0), t, current_img_multiple[1].unsqueeze(dim=0))
                 # dr, _ = diffusion_module.scheduler_DDIM.step(model_output[2].unsqueeze(dim=0), t, current_img_multiple[2].unsqueeze(dim=0))
