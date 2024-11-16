@@ -327,15 +327,15 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                 conditions = torch.repeat_interleave(classes, len(filenames), dim=0)
                 output = self.inferer(inputs=test_image, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=conditions)
                 losses = self.criterion(noise, output,reduction='none').to(self.device)
-                loss_vals = losses.cpu().numpy()
+                # loss_vals = losses.cpu().numpy()
                 error = losses.mean(dim=(1,2,3)).view(-1).cpu().numpy()
                 error_lists = [error[i::len(filenames)] for i in range(len(filenames))]
-                loss_lists = [loss_vals[i::len(filenames)] for i in range(len(filenames))]
+                # loss_lists = [loss_vals[i::len(filenames)] for i in range(len(filenames))]
                 error_count = 0
                 for filename in filenames:
                     if error_count < len(error_lists):
                         self.scores_dict[filename]['class_errors_each_trial'].append(error_lists[error_count])
-                        self.scores_dict[filename]['class_errors_each_trial_all'].append(loss_lists[error_count])
+                        # self.scores_dict[filename]['class_errors_each_trial_all'].append(loss_lists[error_count])
                         error_count += 1
 
                 
@@ -418,7 +418,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                 
                 test_count += 1
                 self.scores_dict[filename]['class_errors_each_trial'] = []
-                self.scores_dict[filename]['class_errors_each_trial_all'] = []
+                # self.scores_dict[filename]['class_errors_each_trial_all'] = []
                 self.scores_dict[filename]['timestep'] = []
 
             
@@ -446,15 +446,15 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                 conditions = torch.repeat_interleave(classes, len(filenames), dim=0)
                 output = self.inferer(inputs=test_image, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=conditions)
                 losses = self.criterion(noise, output,reduction='none').to(self.device)
-                loss_vals = losses.cpu().numpy()
+                # loss_vals = losses.cpu().numpy()
                 error = losses.mean(dim=(1,2,3)).view(-1).cpu().numpy()
                 error_lists = [error[i::len(filenames)] for i in range(len(filenames))]
-                loss_lists = [loss_vals[i::len(filenames)] for i in range(len(filenames))]
+                # loss_lists = [loss_vals[i::len(filenames)] for i in range(len(filenames))]
                 error_count = 0
                 for filename in filenames:
                     if error_count < len(error_lists):
                         self.scores_dict[filename]['class_errors_each_trial'].append(error_lists[error_count])
-                        self.scores_dict[filename]['class_errors_each_trial_all'].append(loss_lists[error_count])
+                        # self.scores_dict[filename]['class_errors_each_trial_all'].append(loss_lists[error_count])
                         error_count += 1
 
                 
@@ -462,14 +462,14 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
                 np_class_errors = np.array(self.scores_dict[filename]['class_errors_each_trial'])
                 mean_error_classes = np.mean(np_class_errors, axis=0)
-                np_class_errors_all = np.array(self.scores_dict[filename]['class_errors_each_trial_all'])
-                mean_error_classes_all = np.mean(np_class_errors_all, axis=0)
+                # np_class_errors_all = np.array(self.scores_dict[filename]['class_errors_each_trial_all'])
+                # mean_error_classes_all = np.mean(np_class_errors_all, axis=0)
                 min_error_index = np.argmin(mean_error_classes, axis=0) 
                 self.scores_dict[filename]['predicted_label'] = min_error_index.item()
                 # self.class_acc.append([min_error_index, self.scores_dict[filename]['test_label']])
                 csv_info = [filename, min_error_index.item(),]
                 csv_info.extend(mean_error_classes.tolist())
-                csv_info.append(mean_error_classes_all)
+                # csv_info.append(mean_error_classes_all)
                 self.csv_information.append(csv_info)
             
         
@@ -481,7 +481,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
     def on_predict_epoch_end(self):
         columns = ["Image", "Predicted Label",]
         columns.extend(self.target_names)
-        columns.append("All scores")
+        # columns.append("All scores")
 
         df = pd.DataFrame(self.csv_information, columns=columns)
         df.to_csv(f"{self.config['exp']['csv_dir']}/Predict_trial_{self.runs}_seed_{self.seed}.csv",index=False)
