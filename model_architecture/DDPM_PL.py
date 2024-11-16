@@ -434,7 +434,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             
 
             for r in range(self.runs):
-                timesteps = torch.tensor([r],device=self.device).long()
+                timesteps = torch.randint(0, self.scheduler.num_train_timesteps,(1,),device=self.device).long()
 
                 for _, filename in enumerate(filenames):
                     self.scores_dict[filename]['timestep'].append(timesteps.item())

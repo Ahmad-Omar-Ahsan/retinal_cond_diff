@@ -138,30 +138,14 @@ class Retinal_Cond_Lightning_Split(LightningDataModule):
             self.predict_set = predict_dataset
             print(f"Predict dataset length: {len(self.predict_set)}")
         else:
-            dataset = ImageFolder(root=self.data_dir, transform=self.transform)
-            targets = dataset.targets
-            train_idx, temp_idx = train_test_split(
-                np.arange(len(targets)),
-                test_size=0.1,
-                shuffle=True,
-                stratify=targets
-            )
-            valid_idx, test_idx = train_test_split(
-                temp_idx,
-                test_size=0.5,
-                shuffle=True,
-                stratify=np.array(targets)[temp_idx]
-            )
             if stage == 'fit':
-                train_dataset = Subset(dataset, train_idx)
-                valid_dataset = Subset(dataset, valid_idx)
+                train_dataset = ImageFolder(root=self.train_dir, transform=self.transform)
+                valid_dataset = ImageFolder(root=self.val_dir, transform=self.transform)
                 self.train = train_dataset
-                
                 self.val = valid_dataset
                 print(f"Train, val length:  {len(self.train), len(self.val)}")
-            
-            if stage == 'test':
-                test_dataset = Subset(dataset, test_idx)
+            elif stage == 'test':
+                test_dataset = ImageFolder(root=self.test_dir, transform=self.transform)
                 self.test = test_dataset
                 print(f"Test length: {len(self.test)}")
 
