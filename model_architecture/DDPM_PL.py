@@ -399,7 +399,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
 
     def predict_step(self,batch,batch_idx):
-        timestep_list = []
+        
         filepath_labels = self.config['exp']['file_path_labels'][batch_idx*self.batch_size:(batch_idx+1)*self.batch_size]
         # filepaths_labels = self.dm.dataloader.dataset.imgs
         filename_list = filepath_labels
@@ -428,8 +428,6 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             test_image = images.repeat(self.num_classes,1,1,1)
             error = [0] * self.num_classes * len(filenames)
 
-            noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
-            noise = torch.repeat_interleave(noise,len(filenames) * self.num_classes,dim=0)
                
             
 
@@ -441,6 +439,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
 
                 timesteps=torch.repeat_interleave(timesteps,self.num_classes * len(filenames),dim=0)
                 
+                noise = torch.randn((1, self.in_channels , self.image_h, self.image_w)).to(self.device)
+                noise = torch.repeat_interleave(noise,len(filenames) * self.num_classes,dim=0)
                 
                 
                 conditions = torch.repeat_interleave(classes, len(filenames), dim=0)
