@@ -344,14 +344,14 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                 np_class_errors = np.array(self.scores_dict[filename]['class_errors_each_trial'])
                 mean_error_classes = np.mean(np_class_errors, axis=0)
                 min_error_index = np.argmin(mean_error_classes, axis=0) 
-                np_class_errors_all = np.array(self.scores_dict[filename]['class_errors_each_trial_all'])
-                mean_error_classes_all = np.mean(np_class_errors_all, axis=0)
+                # np_class_errors_all = np.array(self.scores_dict[filename]['class_errors_each_trial_all'])
+                # mean_error_classes_all = np.mean(np_class_errors_all, axis=0)
                 self.scores_dict[filename]['predicted_label'] = min_error_index.item()
                 accuracy.append((min_error_index == self.scores_dict[filename]['test_label'])* 1.0)
                 # self.class_acc.append([min_error_index, self.scores_dict[filename]['test_label']])
                 csv_info = [filename, min_error_index.item(), self.scores_dict[filename]['test_label']]
                 csv_info.extend(mean_error_classes.tolist())
-                csv_info.append(mean_error_classes_all)
+                # csv_info.append(mean_error_classes_all)
                 self.csv_information.append(csv_info)
             
         
