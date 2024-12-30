@@ -14,6 +14,45 @@ from torchvision import transforms
 from PIL import Image 
 from torchvision.datasets import ImageFolder
 from torchvision.utils import save_image
+from timm.data import create_transform
+from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+
+
+def build_transform(is_train, config):
+    mean = IMAGENET_DEFAULT_MEAN
+    std = IMAGENET_DEFAULT_STD
+    # train transform
+    if is_train=='train':
+        # this should always dispatch to transforms_imagenet_train
+        transform = create_transform(
+            input_size=config['hparams']['transform']['input_size'],
+            is_training=True,
+            color_jitter=config['hparams']['transform']['color_jitter'],
+            auto_augment=config['hparams']['transform']['auto_augment'],
+            interpolation='bicubic',
+            re_prob=config['hparams']['transform']['reprob'],
+            re_mode=config['hparams']['transform']['remode'],
+            re_count=config['hparams']['transform']['recount'],
+            mean=mean,
+            std=std,
+        )
+        return transform
+
+    # eval transform
+    t = []
+    input_size = config['hparams']['transform']['input_size']
+    if input_size <= 224:
+        crop_pct = 224 / 256
+    else:
+        crop_pct = 1.0
+    size = int(input_size / crop_pct)
+    t.append(
+        transforms.Resize(size, interpolation=transforms.InterpolationMode.BICUBIC), 
+    )
+    t.append(transforms.CenterCrop(input_size))
+    t.append(transforms.ToTensor())
+    t.append(transforms.Normalize(mean, std))
+    return transforms.Compose(t)
 
 class Fake_Dataset(Dataset):
     def __init__(self, size=4, image_size=[3,224,224]):
@@ -73,8 +112,7 @@ class Retinal_Predict_dataset(Dataset):
         self.data_dir = self.config['exp']['predict_dir']
         self.size = self.config['hparams']['batch_size']
         self.num_classes = self.config['hparams']['num_classes']
-        self.transform = transforms.Compose([transforms.Resize(224),transforms.ToTensor()
-                                             ])
+        self.transform = build_transform(is_train=False, config=config)
         self.sample_lists = os.listdir(self.data_dir)
         self.file_paths = [os.path.join(self.config['exp']['predict_dir'], file) for file in self.sample_lists]
         
@@ -126,8 +164,8 @@ class Retinal_Cond_Lightning_Split(LightningDataModule):
         self.data_dir = self.config['exp']['data_dir']
         self.size = self.config['hparams']['batch_size']
         self.num_classes = self.config['hparams']['num_classes']
-        self.transform = transforms.Compose([transforms.Resize(224),transforms.ToTensor()
-                                             ])
+        self.transform_train = build_transform(is_train=True, config=config)
+        self.transform_val_test = build_transform(is_train=False, config=config)
         self.train_dir = os.path.join(self.data_dir,'train')
         self.val_dir = os.path.join(self.data_dir, 'val')
         self.test_dir = os.path.join(self.data_dir, 'test')
@@ -139,13 +177,13 @@ class Retinal_Cond_Lightning_Split(LightningDataModule):
             print(f"Predict dataset length: {len(self.predict_set)}")
         else:
             if stage == 'fit':
-                train_dataset = ImageFolder(root=self.train_dir, transform=self.transform)
-                valid_dataset = ImageFolder(root=self.val_dir, transform=self.transform)
+                train_dataset = ImageFolder(root=self.train_dir, transform=self.transform_train)
+                valid_dataset = ImageFolder(root=self.val_dir, transform=self.transform_val_test)
                 self.train = train_dataset
                 self.val = valid_dataset
                 print(f"Train, val length:  {len(self.train), len(self.val)}")
             elif stage == 'test':
-                test_dataset = ImageFolder(root=self.test_dir, transform=self.transform)
+                test_dataset = ImageFolder(root=self.test_dir, transform=self.transform_val_test)
                 self.test = test_dataset
                 print(f"Test length: {len(self.test)}")
 

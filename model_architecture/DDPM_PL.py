@@ -268,12 +268,12 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             
             self.scheduler.set_timesteps(num_inference_steps=self.num_inference_timesteps)
             images = self.inferer.sample(input_noise=self.noise, diffusion_model=self.model, scheduler=self.scheduler, conditioning=labels)
-            grid = make_grid(images, nrow=self.num_classes)
+            grid = make_grid(images, nrow=self.num_classes, normalize=True)
             self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDPM", grid, current_epoch)
 
             self.scheduler_DDIM.set_timesteps(num_inference_steps=self.num_inference_timesteps)
             images = self.inferer.sample(input_noise=self.noise, diffusion_model=self.model, scheduler=self.scheduler_DDIM, conditioning=labels)
-            grid = make_grid(images, nrow=self.num_classes)
+            grid = make_grid(images, nrow=self.num_classes, normalize=True)
             self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDIM", grid, current_epoch)
 
         
