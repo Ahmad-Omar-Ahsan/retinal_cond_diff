@@ -2,7 +2,7 @@ import os
 import pytorch_lightning as pl
 from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
-from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary
+from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary, LearningRateMonitor
 import torch
 import yaml
 from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning_Split,  Pickle_Lightning, load_finetune_checkpoint
@@ -12,7 +12,7 @@ from model_architecture import LightningDDPM_monai,  Pretrained_LightningDDPM_mo
 def pipeline(config):
     logger = TensorBoardLogger(config['exp']['logdir'], name=config['exp']["exp_name"])
     
-    
+    lr_callback = LearningRateMonitor(logging_interval='step')
     # dm = FakeData_lightning(config=config)
     if config['exp']['training_type'] == 'scratch_UKBB':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
@@ -32,7 +32,7 @@ def pipeline(config):
             max_epochs = config['hparams']['max_epochs'],
             num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
             accelerator=config['exp']['accelerator'],
-            callbacks=[checkpoint_callback],
+            callbacks=[checkpoint_callback, lr_callback],
             precision='16-mixed',
             # profiler='pytorch',
             accumulate_grad_batches=8
@@ -61,7 +61,7 @@ def pipeline(config):
             max_epochs = config['hparams']['max_epochs'],
             num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
             accelerator=config['exp']['accelerator'],
-            callbacks=[checkpoint_callback],
+            callbacks=[checkpoint_callback, lr_callback],
             precision='16-mixed',
             # profiler='pytorch',
             accumulate_grad_batches=8
@@ -90,7 +90,7 @@ def pipeline(config):
             max_epochs = config['hparams']['max_epochs'],
             num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
             accelerator=config['exp']['accelerator'],
-            callbacks=[checkpoint_callback],
+            callbacks=[checkpoint_callback, lr_callback],
             precision='16-mixed',
             # profiler='pytorch',
             accumulate_grad_batches=8
@@ -151,7 +151,7 @@ def pipeline(config):
             max_epochs = config['hparams']['max_epochs'],
             num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
             accelerator=config['exp']['accelerator'],
-            callbacks=[checkpoint_callback],
+            callbacks=[checkpoint_callback, lr_callback],
             precision='16-mixed',
             # profiler='pytorch',
             accumulate_grad_batches=8
@@ -183,7 +183,7 @@ def pipeline(config):
             max_epochs = config['hparams']['max_epochs'],
             num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
             accelerator=config['exp']['accelerator'],
-            callbacks=[checkpoint_callback],
+            callbacks=[checkpoint_callback, lr_callback],
             precision='16-mixed',
             # profiler='pytorch',
             accumulate_grad_batches=8
@@ -214,7 +214,7 @@ def pipeline(config):
             max_epochs = config['hparams']['max_epochs'],
             num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
             accelerator=config['exp']['accelerator'],
-            callbacks=[checkpoint_callback],
+            callbacks=[checkpoint_callback, lr_callback],
             precision='16-mixed',
             # profiler='pytorch',
             accumulate_grad_batches=8
@@ -241,7 +241,7 @@ def pipeline(config):
             max_epochs = config['hparams']['max_epochs'],
             num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
             accelerator=config['exp']['accelerator'],
-            callbacks=[checkpoint_callback],
+            callbacks=[checkpoint_callback, lr_callback],
             precision='16-mixed',
             # profiler='pytorch',
             accumulate_grad_batches=8
@@ -268,7 +268,7 @@ def pipeline(config):
             max_epochs = config['hparams']['max_epochs'],
             num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
             accelerator=config['exp']['accelerator'],
-            callbacks=[checkpoint_callback],
+            callbacks=[checkpoint_callback, lr_callback],
             precision='16-mixed',
             # profiler='pytorch',
             accumulate_grad_batches=8
