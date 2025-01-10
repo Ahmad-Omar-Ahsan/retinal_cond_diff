@@ -49,7 +49,7 @@ def build_transform(is_train, config):
     t.append(
         transforms.Resize(size, interpolation=transforms.InterpolationMode.BICUBIC), 
     )
-    t.append(transforms.CenterCrop(input_size))
+    t.append(transforms.CenterCrop((input_size,size)))
     t.append(transforms.ToTensor())
     t.append(transforms.Normalize(mean, std))
     return transforms.Compose(t)
@@ -136,6 +136,7 @@ class FakeData_lightning(LightningDataModule):
         self.image_size = image_size
         self.num_classes = num_classes
         self.config = config
+        self.num_workers = len(os.sched_getaffinity(0))
 
     def setup(self, stage):
         self.train = Fake_Dataset(size=2*self.size, image_size=self.image_size)
@@ -143,16 +144,16 @@ class FakeData_lightning(LightningDataModule):
         self.test = Fake_Dataset(size=self.size, image_size=self.image_size)
 
     def train_dataloader(self):
-        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.train, batch_size=self.size, num_workers=self.num_workers)
     
     def val_dataloader(self):
-        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.num_workers)
 
     def test_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.num_workers)
     
     def predict_dataloader(self):
-        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.num_workers)
     
 
 
@@ -161,6 +162,7 @@ class Retinal_Cond_Lightning_Split(LightningDataModule):
     def __init__(self, config):
         super().__init__()
         self.config = config
+        self.config['exp']['num_workers'] = len(os.sched_getaffinity(0))
         self.data_dir = self.config['exp']['data_dir']
         self.size = self.config['hparams']['batch_size']
         self.num_classes = self.config['hparams']['num_classes']
