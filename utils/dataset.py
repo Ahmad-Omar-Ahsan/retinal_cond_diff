@@ -18,7 +18,7 @@ from timm.data import create_transform
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
 
-def build_transform(is_train, config):
+def build_transform(is_train, config, model_type):
     mean = IMAGENET_DEFAULT_MEAN
     std = IMAGENET_DEFAULT_STD
     # train transform
@@ -49,7 +49,10 @@ def build_transform(is_train, config):
     t.append(
         transforms.Resize(size, interpolation=transforms.InterpolationMode.BICUBIC), 
     )
-    t.append(transforms.CenterCrop((input_size,size)))
+    if model_type == 'discriminative':
+        t.append(transforms.CenterCrop(input_size))
+    elif model_type == 'generative':
+        t.append(transforms.CenterCrop((input_size,size)))
     t.append(transforms.ToTensor())
     t.append(transforms.Normalize(mean, std))
     return transforms.Compose(t)
@@ -166,8 +169,8 @@ class Retinal_Cond_Lightning_Split(LightningDataModule):
         self.data_dir = self.config['exp']['data_dir']
         self.size = self.config['hparams']['batch_size']
         self.num_classes = self.config['hparams']['num_classes']
-        self.transform_train = build_transform(is_train=True, config=config)
-        self.transform_val_test = build_transform(is_train=False, config=config)
+        self.transform_train = build_transform(is_train=self.config['hparams']['train_is_train'], config=config, model_type = self.config['hparams']['model_type'])
+        self.transform_val_test = build_transform(is_train=self.config['hparams']['test_val_is_train'], config=config, model_type = self.config['hparams']['model_type'])
         self.train_dir = os.path.join(self.data_dir,'train')
         self.val_dir = os.path.join(self.data_dir, 'val')
         self.test_dir = os.path.join(self.data_dir, 'test')
