@@ -280,7 +280,7 @@ def pipeline(config):
         Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai(config=config)
         trainer.fit(model=Pretrained_DDPM_lightning, datamodule=dm, ckpt_path=config['exp']['model_ckpt_path'])
 
-    elif config['exp']['training_type'] == "resnet_train_test":
+    elif config['exp']['training_type'] == "resnet_train":
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
                                               verbose=False,
@@ -307,7 +307,7 @@ def pipeline(config):
         dm = Retinal_Cond_Lightning_Split(config=config)
         
         trainer.fit(model=resnet_50, datamodule=dm)
-        trainer.test(model=resnet_50, datamodule=dm)
+        # trainer.test(model=resnet_50, datamodule=dm)
 
     elif config['exp']['training_type'] == "resnet_predict":
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
@@ -375,7 +375,7 @@ def pipeline(config):
         resnet_50 = Restnet_50.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.test(model=resnet_50, dataloaders=dm.test_dataloader() )
 
-    elif config['exp']['training_type'] == "efficient_net_b3_train_test":
+    elif config['exp']['training_type'] == "efficient_net_b3_train":
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
                                               verbose=False,
@@ -402,7 +402,40 @@ def pipeline(config):
         dm = Retinal_Cond_Lightning_Split(config=config)
         
         trainer.fit(model=efficient_net_b3, datamodule=dm)
-        trainer.test(model=efficient_net_b3, datamodule=dm)
+        # trainer.test(model=efficient_net_b3, datamodule=dm)
+
+    elif config['exp']['training_type'] == "efficient_net_b3_test":
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_loss',
+                                              verbose=False,
+                                              save_last=True,
+                                              save_top_k=config['exp']['save_top_k'],
+                                              save_weights_only=False,
+                                              mode='min',
+                                              filename="efficient_net_b3-{epoch:02d}-{step}-{val_loss:.5f}"
+                                              )
+        trainer = pl.Trainer(
+            logger=logger,
+            log_every_n_steps=config['exp']['log_every_n_steps'],
+            devices=config['exp']['device'],
+            min_epochs = config['hparams']['min_epochs'],
+            max_epochs = config['hparams']['max_epochs'],
+            num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
+            accelerator=config['exp']['accelerator'],
+            callbacks=[checkpoint_callback, lr_callback],
+            precision='16-mixed',
+            # profiler='pytorch',
+            accumulate_grad_batches=8
+        )
+        os.makedirs(config['exp']['csv_dir'],exist_ok=True)
+        
+        dm = Retinal_Cond_Lightning_Split(
+            config=config
+        )
+        dm.setup(stage='test')
+        config['exp']['file_path_labels'] = dm.test.imgs
+        efficient_net_b3 = EfficientNet_B3.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
+        trainer.test(model=efficient_net_b3, dataloaders=dm.test_dataloader() )
 
 
     elif config['exp']['training_type'] == "efficient_net_b3_predict":
@@ -437,7 +470,7 @@ def pipeline(config):
         config['exp']['file_path_labels'] = dm.predict_set.file_paths
         efficient_net_b3 = EfficientNet_B3.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.predict(model=efficient_net_b3, dataloaders=dm.predict_dataloader() )
-    elif config['exp']['training_type'] == "swin_b_train_test":
+    elif config['exp']['training_type'] == "swin_b_train":
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
                                               verbose=False,
@@ -499,6 +532,40 @@ def pipeline(config):
         config['exp']['file_path_labels'] = dm.predict_set.file_paths
         swin_b = Swin_B.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.predict(model=swin_b, dataloaders=dm.predict_dataloader() )
+
+    elif config['exp']['training_type'] == "swin_b_test":
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_loss',
+                                              verbose=False,
+                                              save_last=True,
+                                              save_top_k=config['exp']['save_top_k'],
+                                              save_weights_only=False,
+                                              mode='min',
+                                              filename="swin_b-{epoch:02d}-{step}-{val_loss:.5f}"
+                                              )
+        trainer = pl.Trainer(
+            logger=logger,
+            log_every_n_steps=config['exp']['log_every_n_steps'],
+            devices=config['exp']['device'],
+            min_epochs = config['hparams']['min_epochs'],
+            max_epochs = config['hparams']['max_epochs'],
+            num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
+            accelerator=config['exp']['accelerator'],
+            callbacks=[checkpoint_callback, lr_callback],
+            precision='16-mixed',
+            # profiler='pytorch',
+            accumulate_grad_batches=8
+        )
+        os.makedirs(config['exp']['csv_dir'],exist_ok=True)
+        
+        dm = Retinal_Cond_Lightning_Split(
+            config=config
+        )
+        dm.setup(stage='test')
+        config['exp']['file_path_labels'] = dm.test.imgs
+        swin_b = Swin_B.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
+        trainer.test(model=swin_b, dataloaders=dm.test_dataloader() )
+
 
 
     
