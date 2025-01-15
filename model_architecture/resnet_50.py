@@ -14,7 +14,7 @@ class Restnet_50(pl.LightningModule):
         super().__init__()
 
         self.config = config
-        self.model = models.resnet50(weights=None)
+        self.model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
         self.num_features = self.model.fc.in_features
         self.model.fc = nn.Linear(self.num_features, self.config['hparams']['num_classes'])
         

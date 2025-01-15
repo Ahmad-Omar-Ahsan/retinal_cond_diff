@@ -14,9 +14,8 @@ class EfficientNet_B3(pl.LightningModule):
         super().__init__()
 
         self.config = config
-        self.model = models.efficientnet_b3(weights=None)
-        self.num_features = self.model.fc.in_features
-        self.model.fc = nn.Linear(self.num_features, self.config['hparams']['num_classes'])
+        self.model = models.efficientnet_b3(weights='IMAGENET1K_V1')
+        self.model.classifier[1]= nn.Linear(in_features=1536, out_features=self.config['hparams']['num_classes'])
         
         self.criterion = F.cross_entropy
 
