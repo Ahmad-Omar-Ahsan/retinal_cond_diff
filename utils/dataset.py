@@ -97,7 +97,7 @@ class UK_biobank_retinal(Dataset):
         std = IMAGENET_DEFAULT_STD
         t = []
         t.append(transforms.ToTensor())
-        t.apend(transforms.Normalize(mean, std))
+        t.append(transforms.Normalize(mean, std))
         self.transform = transforms.Compose(t)
         
     def __len__(self):
