@@ -125,7 +125,7 @@ class Restnet_50(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer=optimizer,mode='min', patience=5,
+            optimizer=optimizer,mode='min', patience=3,
         )
         return {
             "optimizer": optimizer, 

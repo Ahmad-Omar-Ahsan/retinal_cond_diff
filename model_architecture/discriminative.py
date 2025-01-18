@@ -124,7 +124,7 @@ class EfficientNet_B3(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer=optimizer,mode='min', patience=5,
+            optimizer=optimizer,mode='min', patience=3,
         )
         return {
             "optimizer": optimizer, 
@@ -139,9 +139,9 @@ class Swin_B(pl.LightningModule):
         super().__init__()
 
         self.config = config
-        self.model = models.swin_b(weights=None)
-        self.num_features = self.model.fc.in_features
-        self.model.fc = nn.Linear(self.num_features, self.config['hparams']['num_classes'])
+        self.model = models.swin_b(weights='IMAGENET1K_V1')
+        self.num_features = self.model.head.in_features
+        self.model.head = nn.Linear(self.num_features, self.config['hparams']['num_classes'])
         
         self.criterion = F.cross_entropy
 
@@ -250,7 +250,7 @@ class Swin_B(pl.LightningModule):
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
         lr_scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer=optimizer,mode='min', patience=5,
+            optimizer=optimizer,mode='min', patience=3,
         )
         return {
             "optimizer": optimizer, 
