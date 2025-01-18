@@ -470,6 +470,7 @@ def pipeline(config):
         config['exp']['file_path_labels'] = dm.predict_set.file_paths
         efficient_net_b3 = EfficientNet_B3.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.predict(model=efficient_net_b3, dataloaders=dm.predict_dataloader() )
+        
     elif config['exp']['training_type'] == "swin_b_train":
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
@@ -497,7 +498,6 @@ def pipeline(config):
         dm = Retinal_Cond_Lightning_Split(config=config)
         
         trainer.fit(model=swin_b, datamodule=dm)
-        trainer.test(model=swin_b, datamodule=dm)
 
 
     elif config['exp']['training_type'] == "swin_b_predict":

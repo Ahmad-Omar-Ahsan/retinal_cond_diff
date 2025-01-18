@@ -93,8 +93,13 @@ class UK_biobank_retinal(Dataset):
     def __init__(self, sample_list, transform=transforms.Compose([transforms.ToTensor()])):
         super().__init__()
         self.sample_list = sample_list
-        self.transform = transform
-    
+        mean = IMAGENET_DEFAULT_MEAN
+        std = IMAGENET_DEFAULT_STD
+        t = []
+        t.append(transforms.ToTensor())
+        t.apend(transforms.Normalize(mean, std))
+        self.transform = transforms.Compose(t)
+        
     def __len__(self):
         return len(self.sample_list)
     
@@ -261,7 +266,7 @@ class UK_biobank_data_module(LightningDataModule):
         
         full_dataset = UK_biobank_retinal(self.sample_list, self.transform)
         dataset_size = len(full_dataset)
-        train_val_set_size = int(dataset_size * 0.9)
+        train_val_set_size = int(dataset_size * 0.95)
         test_set_size = dataset_size - train_val_set_size
         self.train_val, self.test = random_split(full_dataset,[train_val_set_size, test_set_size])
         
