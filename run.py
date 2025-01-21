@@ -69,8 +69,8 @@ def pipeline(config):
         dm = UK_biobank_data_module(
             config=config
         )
-        Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai(config=config)
-        trainer.fit(model=Pretrained_DDPM_lightning, datamodule=dm, ckpt_path=config['exp']['model_ckpt_path'])
+        DDPM_lightning = LightningDDPM_monai(config=config)
+        trainer.fit(model=DDPM_lightning , datamodule=dm, ckpt_path=config['exp']['model_ckpt_path'])
     elif config['exp']['training_type'] == 'scratch_conditional':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
