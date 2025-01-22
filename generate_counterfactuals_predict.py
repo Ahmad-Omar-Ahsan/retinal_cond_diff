@@ -12,6 +12,7 @@ import copy
 import numpy as np
 import time
 import pickle
+torch.set_float32_matmul_precision('medium')
 
 def predict(filepath, config):
     with open(config['exp']['trial_pickle_file'], 'rb') as pickle_file:
@@ -47,7 +48,10 @@ def generate_counterfactuals(config):
             count += 1
             pred = predict(file_path, config)
             pred = torch.as_tensor([pred]).to(device)
-            image_path = os.path.join(config['exp']['counterfactual_dir'], f"A_{2}_P_{pred.item()}_reconstructed_{count}.png")
+            
+            filename = (file_path.split('/')[-1]).replace(".png","")
+            print(filename)
+            image_path = os.path.join(config['exp']['counterfactual_dir'], f"A_{2}_P_{pred.item()}_reconstructed_{filename}_{count}.png")
             print(f"Label:{2}, Prediction: {pred.item()}")
             if os.path.exists(image_path):
                 print(f"Path exists: {image_path}")
@@ -114,7 +118,7 @@ def generate_counterfactuals(config):
             grid = make_grid(concat_images)
             
             
-            save_image(grid, fp=image_path)
+            save_image(grid, fp=image_path, normalize=True)
             end = time.time()
             print(f"Elasped time: {end-start}s.")
             print(f"Saved: {image_path}")
