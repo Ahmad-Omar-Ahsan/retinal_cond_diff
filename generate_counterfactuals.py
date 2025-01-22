@@ -46,7 +46,8 @@ def generate_counterfactuals(config):
             count += 1
             pred = predict(file_path, config)
             pred = torch.as_tensor([pred]).to(device)
-            image_path = os.path.join(config['exp']['counterfactual_dir'], f"A_{label.item()}_P_{pred.item()}_reconstructed_{count}.png")
+            filename = (file_path.split('/')[-1]).replace(".png","")
+            image_path = os.path.join(config['exp']['counterfactual_dir'], f"A_{label.item()}_P_{pred.item()}_reconstructed_{filename}_{count}.png")
             print(f"Label:{label.item()}, Prediction: {pred.item()}")
             if os.path.exists(image_path):
                 print(f"Path exists: {image_path}")
