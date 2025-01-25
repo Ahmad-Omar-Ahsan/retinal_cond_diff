@@ -40,19 +40,19 @@ def build_transform(is_train, config, model_type):
 
     # eval transform
     t = []
-    input_size = config['hparams']['transform']['input_size']
-    if input_size <= 224:
-        crop_pct = 224 / 256
-    else:
-        crop_pct = 1.0
-    size = int(input_size / crop_pct)
-    t.append(
-        transforms.Resize(size, interpolation=transforms.InterpolationMode.BICUBIC), 
-    )
-    if model_type == 'discriminative':
-        t.append(transforms.CenterCrop(input_size))
-    elif model_type == 'generative':
-        t.append(transforms.CenterCrop((input_size,size)))
+    # input_size = config['hparams']['transform']['input_size']
+    # if input_size <= 224:
+    #     crop_pct = 224 / 256
+    # else:
+    #     crop_pct = 1.0
+    # size = int(input_size / crop_pct)
+    # t.append(
+    #     transforms.Resize(size, interpolation=transforms.InterpolationMode.BICUBIC), 
+    # )
+    # if model_type == 'discriminative':
+    #     t.append(transforms.CenterCrop(input_size))
+    # elif model_type == 'generative':
+    #     t.append(transforms.RandomResizedCrop(size=(size,size),))
     t.append(transforms.ToTensor())
     t.append(transforms.Normalize(mean, std))
     return transforms.Compose(t)
