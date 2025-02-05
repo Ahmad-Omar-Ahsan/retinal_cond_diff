@@ -72,6 +72,7 @@ class LightningDDPM_monai(pl.LightningModule):
             #     set_alpha_to_one=config['hparams']['DDIMScheduler']['set_alpha_to_one'],
             #     prediction_type=config['hparams']['DDIMScheduler']['prediction_type']
             # )
+        self.num_train_timesteps = config['hparams']['DDPMScheduler']['num_train_timesteps']
         self.num_inference_timesteps = config['hparams']['num_inference_timesteps']
         self.inferer = DiffusionInferer(
             scheduler=self.scheduler
@@ -147,7 +148,7 @@ class LightningDDPM_monai(pl.LightningModule):
         if current_epoch % self.config['hparams']['validation_sample_inspect_epoch'] == 0:
             print(f'On validation epoch:{self.current_epoch} end\n')
             noise = torch.randn((8, self.in_channels , self.image_h, self.image_w)).to(self.device)
-            self.scheduler.set_timesteps(num_inference_steps=self.num_inference_timesteps)
+            self.scheduler.set_timesteps(num_inference_steps=self.num_train_timesteps)
             images = self.inferer.sample(input_noise=noise, diffusion_model=self.model, scheduler=self.scheduler)
             grid = make_grid(images, nrow=4)
             self.logger.experiment.add_image(f"Generated retinal image in validation epoch end", grid, current_epoch)
