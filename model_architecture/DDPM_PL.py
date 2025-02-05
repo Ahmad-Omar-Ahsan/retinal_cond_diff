@@ -192,7 +192,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         )
         self.num_classes = config['hparams']['num_classes']
 
-        self.scheduler = DDPMScheduler(
+        self.scheduler_DDPM = DDPMScheduler(
             num_train_timesteps=config['hparams']['DDPMScheduler']['num_train_timesteps'],
             schedule=config['hparams']['DDPMScheduler']['schedule'],
             variance_type=config['hparams']['DDPMScheduler']['variance_type'],
@@ -206,9 +206,10 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             set_alpha_to_one=config['hparams']['DDIMScheduler']['set_alpha_to_one'],
             prediction_type=config['hparams']['DDIMScheduler']['prediction_type']
         )
+        self.num_train_timesteps = config['hparams']['DDPMScheduler']['num_train_timesteps']
         self.num_inference_timesteps = config['hparams']['num_inference_timesteps']
         self.inferer = FlexibleConditionalDiffusionInferer(
-            scheduler=self.scheduler
+            scheduler=self.scheduler_DDPM
         )
         self.lr = config['hparams']['learning_rate']
         self.criterion = F.mse_loss
@@ -273,14 +274,14 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         if current_epoch % self.config['hparams']['validation_sample_inspect_epoch'] == 0:
             print(f'On validation epoch:{self.current_epoch} end\n')
             
-            # self.scheduler.set_timesteps(num_inference_steps=self.num_inference_timesteps)
-            # images = self.inferer.sample(input_noise=self.noise, diffusion_model=self.model, scheduler=self.scheduler, conditioning=labels)
-            # grid = make_grid(images, nrow=self.num_classes, normalize=True)
-            # self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDPM", grid, current_epoch)
+            self.scheduler.set_timesteps(num_inference_steps=self.num_train_timesteps)
+            images = self.inferer.sample(input_noise=self.noise, diffusion_model=self.model, scheduler=self.scheduler_DDPM, conditioning=labels)
+            grid = make_grid(images, nrow=self.num_classes)
+            self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDPM", grid, current_epoch)
 
             self.scheduler_DDIM.set_timesteps(num_inference_steps=self.num_inference_timesteps)
             images = self.inferer.sample(input_noise=self.noise, diffusion_model=self.model, scheduler=self.scheduler_DDIM, conditioning=labels)
-            grid = make_grid(images, nrow=self.num_classes, normalize=True)
+            grid = make_grid(images, nrow=self.num_classes)
             self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDIM", grid, current_epoch)
 
         

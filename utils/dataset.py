@@ -18,44 +18,48 @@ from timm.data import create_transform
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
 
 
+class BlackStripCropping:
+    def __init__(self, prob=0.5):
+        """
+        Returns tensor with black-strip cropping
+        prob (float): Probability of not cropping
+        percentage (float): Amount to crop
+        """
+        self.prob = prob
+
+    def __call__(self, tensor):
+        if np.random.random() > self.prob:
+            return tensor
+        temp = tensor.clone()
+        _, H, _ = temp.size()
+        h_portion = np.random.randint(low=14,high=28)
+        top_percent = h_portion
+        bottom_percent = H - h_portion
+
+        temp[:, :top_percent, :] = 0
+        temp[:, bottom_percent:, :] = 0
+
+        return temp
+
+    def __repr__(self):
+        return f"{self.__class__.name__}(prob={self.prob}, percentage={self.percentage})"
+    
+
 def build_transform(is_train, config, model_type):
     mean = IMAGENET_DEFAULT_MEAN
     std = IMAGENET_DEFAULT_STD
     # train transform
     if is_train=='train':
         # this should always dispatch to transforms_imagenet_train
-        transform = create_transform(
-            input_size=config['hparams']['transform']['input_size'],
-            is_training=True,
-            color_jitter=config['hparams']['transform']['color_jitter'],
-            auto_augment=config['hparams']['transform']['auto_augment'],
-            interpolation='bicubic',
-            re_prob=config['hparams']['transform']['reprob'],
-            re_mode=config['hparams']['transform']['remode'],
-            re_count=config['hparams']['transform']['recount'],
-            mean=mean,
-            std=std,
-        )
-        return transform
-
-    # eval transform
-    t = []
-    # input_size = config['hparams']['transform']['input_size']
-    # if input_size <= 224:
-    #     crop_pct = 224 / 256
-    # else:
-    #     crop_pct = 1.0
-    # size = int(input_size / crop_pct)
-    # t.append(
-    #     transforms.Resize(size, interpolation=transforms.InterpolationMode.BICUBIC), 
-    # )
-    # if model_type == 'discriminative':
-    #     t.append(transforms.CenterCrop(input_size))
-    # elif model_type == 'generative':
-    #     t.append(transforms.RandomResizedCrop(size=(size,size),))
-    t.append(transforms.ToTensor())
-    t.append(transforms.Normalize(mean, std))
-    return transforms.Compose(t)
+        t = []
+        t.append(transforms.ToTensor())
+        t.append(BlackStripCropping(prob=0.5))
+        return transforms.Compose(t)
+    # everything else
+    else:
+        t = []
+        t.append(transforms.ToTensor())
+        return transforms.Compose(t)
 
 class Fake_Dataset(Dataset):
     def __init__(self, size=4, image_size=[3,224,224]):
