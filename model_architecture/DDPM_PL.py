@@ -275,7 +275,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         if current_epoch % self.config['hparams']['validation_sample_inspect_epoch'] == 0:
             print(f'On validation epoch:{self.current_epoch} end\n')
             
-            self.scheduler.set_timesteps(num_inference_steps=self.num_train_timesteps)
+            self.scheduler_DDPM.set_timesteps(num_inference_steps=self.num_train_timesteps)
             images = self.inferer.sample(input_noise=self.noise, diffusion_model=self.model, scheduler=self.scheduler_DDPM, conditioning=labels)
             grid = make_grid(images, nrow=self.num_classes)
             self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDPM", grid, current_epoch)
