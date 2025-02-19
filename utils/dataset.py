@@ -49,7 +49,7 @@ def build_transform(is_train, config, model_type):
     mean = IMAGENET_DEFAULT_MEAN
     std = IMAGENET_DEFAULT_STD
     # train transform
-    if is_train=='train':
+    if is_train:
         # this should always dispatch to transforms_imagenet_train
         t = []
         t.append(transforms.ToTensor())
