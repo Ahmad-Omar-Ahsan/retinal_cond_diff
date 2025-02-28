@@ -124,7 +124,7 @@ class Retinal_Predict_dataset(Dataset):
         self.data_dir = self.config['exp']['predict_dir']
         self.size = self.config['hparams']['batch_size']
         self.num_classes = self.config['hparams']['num_classes']
-        self.transform = build_transform(is_train=False, config=config, model_type = self.config['hparams']['model_type'])
+        self.transform = build_transform(is_train=self.config['hparams']['test_val_is_train'], config=config, model_type = self.config['hparams']['model_type'])
         self.sample_lists = os.listdir(self.data_dir)
         self.file_paths = [os.path.join(self.config['exp']['predict_dir'], file) for file in self.sample_lists]
         
