@@ -14,3 +14,4 @@ conf.yaml
 *.ipynb
 *.pt
 ckpt_loader_saver.py
+*.pdf
