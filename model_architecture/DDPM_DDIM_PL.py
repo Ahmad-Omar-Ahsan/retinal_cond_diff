@@ -12,7 +12,6 @@ from torch.cuda.amp import  autocast
 import numpy as np
 from model_architecture import set_timesteps_without_ratio
 
-torch.set_float32_matmul_precision('medium')
 
 
 

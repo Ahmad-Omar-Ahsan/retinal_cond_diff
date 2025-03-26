@@ -13,7 +13,6 @@ from torch.cuda.amp import  autocast
 from tqdm import tqdm
 import numpy as np
 from .Custom_Inferer import FlexibleConditionalDiffusionInferer
-torch.set_float32_matmul_precision('medium')
 from sklearn.metrics import accuracy_score
 import pickle
 

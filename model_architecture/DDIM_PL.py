@@ -14,7 +14,6 @@ import numpy as np
 from sklearn.metrics import accuracy_score
 import pandas as pd
 import pickle
-torch.set_float32_matmul_precision('medium')
 
 
 
