@@ -265,7 +265,25 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.log("val_loss", val_loss, prog_bar=True, on_step=True, on_epoch=True)
         return val_loss
 
-    
+    def on_load_checkpoint(self, checkpoint: dict) -> None:
+        state_dict = checkpoint["state_dict"]
+        model_state_dict = self.state_dict()
+        is_changed = False
+        for k in state_dict:
+            if k in model_state_dict:
+                if state_dict[k].shape != model_state_dict[k].shape:
+                    # logger.info(f"Skip loading parameter: {k}, "
+                    #             f"required shape: {model_state_dict[k].shape}, "
+                    #             f"loaded shape: {state_dict[k].shape}")
+                    state_dict[k] = model_state_dict[k]
+                    is_changed = True
+            else:
+                # logger.info(f"Dropping parameter {k}")
+                is_changed = True
+
+        if is_changed:
+            checkpoint.pop("optimizer_states", None)
+
     def on_validation_epoch_end(self):
 
         
@@ -515,8 +533,4 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         else:
             optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
             return optimizer
-
-
-
-
-
+            
