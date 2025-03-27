@@ -238,19 +238,43 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.scores_dict = {}
         self.target_names = config['hparams']['target_names']
 
+        self.CBDM = config['hparams']['CBDM']
+        if self.CBDM:
+            self.tau = config['hparams']['tau']
+
     def training_step(self, batch, batch_idx, dataloader_idx=0):
         images, labels = batch
         # with autocast(enabled=True):
         noise = torch.randn((images.shape[0], images.shape[1], images.shape[2], images.shape[3])).to(images.device)
         timesteps = torch.randint(0, self.inferer.scheduler.num_train_timesteps, (images.shape[0],)).to(images.device)
         noise_pred = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=labels)
-
-        train_loss = self.criterion(noise_pred.float(), noise.float())
-        self.log("training_loss", train_loss, prog_bar=True, on_step=True, on_epoch=True)
         
+        train_loss = self.criterion(noise_pred.float(), noise.float())
+        # train_loss_mean = torch.mean(train_loss, dim=[0,1,2,3])
+        self.log("training_loss", train_loss, prog_bar=True, on_step=True, on_epoch=True)
+        if not self.CBDM:
+            
+            # train_loss = self.criterion(noise_pred.float(), noise.float())
+            # self.log("training_loss", train_loss, prog_bar=True, on_step=True, on_epoch=True)
+            
+            return train_loss
+        else:
+            y_bal = torch.Tensor(np.random.choice(
+                                 self.num_classes, size=len(images),
+                                 p=None
+                                 )).to(self.device).long()
+            h_bal = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=y_bal)
+            weight = timesteps / self.num_train_timesteps * self.tau
+            loss_reg = weight * self.criterion(noise_pred, h_bal.detach())
+            loss_com = weight * self.criterion(noise_pred.detach(), h_bal)
+            total_loss = train_loss + loss_reg + 1/4 * loss_com
+            
+            self.log("training_loss_total_CBDM", total_loss, prog_bar=True, on_step=True, on_epoch=True)
+
+            return total_loss
         # self.batches.append(batch)
         
-        return train_loss
+        # return train_loss
     
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
