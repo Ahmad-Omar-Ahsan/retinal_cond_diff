@@ -264,10 +264,10 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
                                  p=None
                                  )).to(self.device).long()
             h_bal = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=y_bal)
-            weight = timesteps / self.num_train_timesteps * self.tau
-            loss_reg = weight * self.criterion(noise_pred, h_bal.detach())
-            loss_com = weight * self.criterion(noise_pred.detach(), h_bal)
-            total_loss = train_loss + loss_reg + 1/4 * loss_com
+            weight = timesteps[:,None, None, None] / self.num_train_timesteps * self.tau
+            loss_reg = weight * self.criterion(noise_pred, h_bal.detach(),reduction='none')
+            loss_com = weight * self.criterion(noise_pred.detach(), h_bal, reduction='none')
+            total_loss = train_loss + torch.mean(loss_reg, dim=[0,1,2,3]) + 1/4 * torch.mean(loss_com, dim=[0,1,2,3])
             
             self.log("training_loss_total_CBDM", total_loss, prog_bar=True, on_step=True, on_epoch=True)
 
