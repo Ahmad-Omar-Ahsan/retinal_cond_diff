@@ -267,8 +267,12 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             weight = timesteps[:,None, None, None] / self.num_train_timesteps * self.tau
             loss_reg = weight * self.criterion(noise_pred, h_bal.detach(),reduction='none')
             loss_com = weight * self.criterion(noise_pred.detach(), h_bal, reduction='none')
-            total_loss = train_loss + torch.mean(loss_reg, dim=[0,1,2,3]) + 1/4 * torch.mean(loss_com, dim=[0,1,2,3])
+            loss_reg_mean = torch.mean(loss_reg, dim=[0,1,2,3])
+            loss_com_mean = torch.mean(loss_com, dim=[0,1,2,3])
+            total_loss = train_loss +  loss_reg_mean + 1/4 * loss_com_mean
             
+            self.log("loss_reg", loss_reg, prog_bar=True, on_step=True, on_epoch=True)
+            self.log("loss_com", loss_com, prog_bar=True, on_step=True, on_epoch=True)
             self.log("training_loss_total_CBDM", total_loss, prog_bar=True, on_step=True, on_epoch=True)
 
             return total_loss
