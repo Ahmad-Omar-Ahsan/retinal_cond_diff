@@ -271,8 +271,8 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             loss_com_mean = torch.mean(loss_com, dim=[0,1,2,3])
             total_loss = train_loss +  loss_reg_mean + 1/4 * loss_com_mean
             
-            self.log("loss_reg", loss_reg, prog_bar=True, on_step=True, on_epoch=True)
-            self.log("loss_com", loss_com, prog_bar=True, on_step=True, on_epoch=True)
+            self.log("loss_reg", loss_reg_mean, prog_bar=True, on_step=True, on_epoch=True)
+            self.log("loss_com", loss_com_mean, prog_bar=True, on_step=True, on_epoch=True)
             self.log("training_loss_total_CBDM", total_loss, prog_bar=True, on_step=True, on_epoch=True)
 
             return total_loss
