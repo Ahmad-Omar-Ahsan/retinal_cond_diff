@@ -37,87 +37,66 @@ def generate_counterfactuals(config):
     
     
     with torch.no_grad():
-        for image, label in dm.test_dataloader():
+        for images, labels in dm.test_dataloader():
             start = time.time()
-            label = label.to(device)
-            image = image.to(device)
-            current_img = image.to(device)
-            file_path = file_paths[count][0]
-            count += 1
-            pred = predict(file_path, config)
-            pred = torch.as_tensor([pred]).to(device)
-            filename = (file_path.split('/')[-1]).replace(".png","")
-            image_path = os.path.join(config['exp']['counterfactual_dir'], f"A_{label.item()}_P_{pred.item()}_reconstructed_{filename}_{count}.png")
-            print(f"Label:{label.item()}, Prediction: {pred.item()}")
-            if os.path.exists(image_path):
-                print(f"Path exists: {image_path}")
-                continue
-            diffusion_module.model = diffusion_module.model.to(device)
-            diffusion_module.scheduler_DDIM.clip_sample = False
-            current_img= torch.repeat_interleave(current_img, diffusion_module.num_classes
-                                                    ,dim=0)
-            pred = torch.repeat_interleave(pred, diffusion_module.num_classes
-                                                    ,dim=0)
-            # pred = torch.arange(num_classes).to(device)
-            for i in progress_bar:
-                t = i
-                
-                model_output = diffusion_module.model(current_img, timesteps=torch.Tensor((t,)).to(device), class_labels=pred).to(device)
-                current_img, _ = diffusion_module.scheduler_DDIM.reversed_step(model_output, t, current_img)
-                # if t % 10 == 0:
-                #     latent_image_path = os.path.join(config['exp']['counterfactual_dir'], f"latent_timestep_{t}.png")
-                #     grid = make_grid(current_img,nrow=6)
-                #     save_image(grid, fp=latent_image_path)
-            latent_img = current_img
-            # current_img_multiple = torch.repeat_interleave(current_img, diffusion_module.num_classes
-            #                                         ,dim=0)
-            current_img_multiple = current_img
+            labels = labels.to(device)
+            images = images.to(device)
+            current_img = images.to(device)
+            file_paths_batch = [file_path[0] for file_path in file_paths[count:count + len(images)]]
+            count += len(images)
 
-            conditions = torch.arange(num_classes).to(device)
-            diffusion_module.scheduler_DDIM.clip_sample = False
-            # label_dir = os.path.join(config['exp']['counterfactual_dir'], str(label.item()))
-            # os.makedirs(label_dir, exist_ok=True)
+             # Batch prediction
+            predictions = [predict(file_path, config) for file_path in file_paths_batch]
+            predictions = torch.tensor(predictions, device=device)
 
-            for t in np.arange(config['hparams']['denoising_timestep'], -step_size, -step_size):
-                timesteps = torch.Tensor((t,)).to(device)
-                timesteps=torch.repeat_interleave(timesteps,num_classes,dim=0)
-                model_output = diffusion_module.model(current_img_multiple, timesteps=timesteps, class_labels=conditions).to(device)
-                current_img_multiple, _ = diffusion_module.scheduler_DDIM.step(model_output, t, current_img_multiple)
-                # if t % 10 == 0:
-                #     reconstructed_image_path = os.path.join(config['exp']['counterfactual_dir'], f"reconstructed_{t}.png")
-                #     grid = make_grid(current_img_multiple,nrow=num_classes)
-                #     save_image(grid, fp=reconstructed_image_path)
-                # amd, _ = diffusion_module.scheduler_DDIM.step(model_output[0].unsqueeze(dim=0), t, current_img_multiple[0].unsqueeze(dim=0))
-                # cataract, _ = diffusion_module.scheduler_DDIM.step(model_output[1].unsqueeze(dim=0), t, current_img_multiple[1].unsqueeze(dim=0))
-                # dr, _ = diffusion_module.scheduler_DDIM.step(model_output[2].unsqueeze(dim=0), t, current_img_multiple[2].unsqueeze(dim=0))
-                # glaucoma, _ = diffusion_module.scheduler_DDIM.step(model_output[3].unsqueeze(dim=0), t, current_img_multiple[3].unsqueeze(dim=0))
-                # myopia, _ = diffusion_module.scheduler_DDIM.step(model_output[4].unsqueeze(dim=0), t, current_img_multiple[4].unsqueeze(dim=0))
-                # normal, _ = diffusion_module.scheduler_DDIM.step(model_output[5].unsqueeze(dim=0), t, current_img_multiple[5].unsqueeze(dim=0))
-                # current_img_multiple = torch.concat((amd,cataract,dr,glaucoma,myopia,normal))
-            # images = diffusion_module.inferer.sample(input_noise=current_img_multiple, diffusion_model=diffusion_module.model, scheduler=diffusion_module.scheduler_DDIM, conditioning=conditions)
-            # amd_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_amd_count_{count}.png")
-            # cataract_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_cataract_count_{count}.png")
-            # dr_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_dr_count_{count}.png")
-            # glaucoma_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_glaucoma_count_{count}.png")
-            # myopia_image_path = os.path.join(config['exp']['counterfactual_dir'],f"Label_{label.item()}_myopia_count_{count}.png")
-            # normal_image_path = os.path.join(label_dir,f"Label_{label.item()}_normal_count_{count}.png")
-            # original_image_path = os.path.join(label_dir,f"Label_{label.item()}_original_image_count_{count}.png")
-            # # save_image(amd,fp=amd_image_path)
-            # # save_image(cataract,fp=cataract_image_path)
-            # # save_image(dr,fp=dr_image_path)
-            # # save_image(glaucoma,fp=glaucoma_image_path)
-            # # save_image(myopia, fp=myopia_image_path)
-            # save_image(normal,fp=normal_image_path)
-            # save_image(image, fp=original_image_path)
+            filenames = [
+                (file_path[0].split('/')[-1]).replace(".png", "")
+                for file_path in file_paths_batch
+            ]
+            image_paths = [
+                os.path.join(config['exp']['counterfactual_dir'], f"A_{label.item()}_P_{pred.item()}_reconstructed_{filename}_{count}.png")
+                for label, pred, filename in zip(labels, predictions, filenames)
+            ]
+            for image_path, label, pred, image in zip(image_paths, labels, predictions, images):
+                print(f"Label:{label.item()}, Prediction: {pred.item()}")
+                if os.path.exists(image_path):
+                    print(f"Path exists: {image_path}")
+                    continue
 
-            concat_images = torch.concat((image, current_img_multiple),dim=0)
-            grid = make_grid(concat_images)
-            
-            
-            save_image(grid, fp=image_path)
-            end = time.time()
-            print(f"Elasped time: {end-start}s.")
-            print(f"Saved: {image_path}")
+                diffusion_module.model = diffusion_module.model.to(device)
+                diffusion_module.scheduler_DDIM.clip_sample = False
+
+                current_img = image.unsqueeze(0).repeat(num_classes, 1, 1, 1)  # Batch-aware repeat
+                pred = pred.unsqueeze(0).repeat(num_classes)
+
+                for i in range(0, latent_space_depth + step_size, step_size):
+                    t = i
+                    model_output = diffusion_module.model(
+                        current_img, timesteps=torch.tensor([t]).to(device), class_labels=pred
+                    )
+                    current_img, _ = diffusion_module.scheduler_DDIM.reversed_step(
+                        model_output, t, current_img
+                    )
+
+                current_img_multiple = current_img
+                conditions = torch.arange(num_classes).to(device)
+
+                for t in np.arange(config['hparams']['denoising_timestep'], -step_size, -step_size):
+                    timesteps = torch.tensor([t]).to(device).repeat(num_classes)
+                    model_output = diffusion_module.model(
+                        current_img_multiple, timesteps=timesteps, class_labels=conditions
+                    )
+                    current_img_multiple, _ = diffusion_module.scheduler_DDIM.step(
+                        model_output, t, current_img_multiple
+                    )
+
+                concat_images = torch.cat([image.unsqueeze(0), current_img_multiple], dim=0)  # Adjusted for batch
+                grid = make_grid(concat_images)
+                save_image(grid, fp=image_path)
+                end = time.time()
+                print(f"Elapsed time: {end-start}s.")
+                print(f"Saved: {image_path}")
+
 
             
 
