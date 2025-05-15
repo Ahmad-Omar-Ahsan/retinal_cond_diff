@@ -6,7 +6,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint, ModelSummary, LearningR
 import torch
 import yaml
 from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning_Split,  Pickle_Lightning, load_finetune_checkpoint
-from model_architecture import LightningDDPM_monai,  Pretrained_LightningDDPM_monai,Conditional_DDIM_monai,MLP_classifier, Restnet_50, EfficientNet_B3, Swin_B
+from model_architecture import LightningDDPM_monai,  Pretrained_LightningDDPM_monai,Conditional_DDIM_monai,MLP_classifier, Restnet_50, EfficientNet_B3, Swin_B, EfficientNet_B0
 
 
 def pipeline(config):
@@ -527,6 +527,102 @@ def pipeline(config):
         config['exp']['file_path_labels'] = dm.predict_set.file_paths
         efficient_net_b3 = EfficientNet_B3.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
         trainer.predict(model=efficient_net_b3, dataloaders=dm.predict_dataloader() )
+
+    elif config['exp']['training_type'] == "efficient_net_b0_train":
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_loss',
+                                              verbose=False,
+                                              save_last=True,
+                                              save_top_k=config['exp']['save_top_k'],
+                                              save_weights_only=False,
+                                              mode='min',
+                                              filename="efficient_net_b3-{epoch:02d}-{step}-{val_loss:.5f}"
+                                              )
+        trainer = pl.Trainer(
+            logger=logger,
+            log_every_n_steps=config['exp']['log_every_n_steps'],
+            devices=config['exp']['device'],
+            min_epochs = config['hparams']['min_epochs'],
+            max_epochs = config['hparams']['max_epochs'],
+            num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
+            accelerator=config['exp']['accelerator'],
+            callbacks=[checkpoint_callback, lr_callback],
+            precision='16-mixed',
+            # profiler='pytorch',
+            accumulate_grad_batches=8
+        )
+        efficient_net_b3 = EfficientNet_B0(config=config)
+        dm = Retinal_Cond_Lightning_Split(config=config)
+        
+        trainer.fit(model=efficient_net_b3, datamodule=dm)
+        # trainer.test(model=efficient_net_b3, datamodule=dm)
+
+    elif config['exp']['training_type'] == "efficient_net_b0_test":
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_loss',
+                                              verbose=False,
+                                              save_last=True,
+                                              save_top_k=config['exp']['save_top_k'],
+                                              save_weights_only=False,
+                                              mode='min',
+                                              filename="efficient_net_b3-{epoch:02d}-{step}-{val_loss:.5f}"
+                                              )
+        trainer = pl.Trainer(
+            logger=logger,
+            log_every_n_steps=config['exp']['log_every_n_steps'],
+            devices=config['exp']['device'],
+            min_epochs = config['hparams']['min_epochs'],
+            max_epochs = config['hparams']['max_epochs'],
+            num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
+            accelerator=config['exp']['accelerator'],
+            callbacks=[checkpoint_callback, lr_callback],
+            precision='16-mixed',
+            # profiler='pytorch',
+            accumulate_grad_batches=8
+        )
+        os.makedirs(config['exp']['csv_dir'],exist_ok=True)
+        
+        dm = Retinal_Cond_Lightning_Split(
+            config=config
+        )
+        dm.setup(stage='test')
+        config['exp']['file_path_labels'] = dm.test.imgs
+        efficient_net_b3 = EfficientNet_B0.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
+        trainer.test(model=efficient_net_b3, dataloaders=dm.test_dataloader() )
+
+
+    elif config['exp']['training_type'] == "efficient_net_b0_predict":
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_loss',
+                                              verbose=False,
+                                              save_last=True,
+                                              save_top_k=config['exp']['save_top_k'],
+                                              save_weights_only=False,
+                                              mode='min',
+                                              filename="efficient_net_b3-{epoch:02d}-{step}-{val_loss:.5f}"
+                                              )
+        trainer = pl.Trainer(
+            logger=logger,
+            log_every_n_steps=config['exp']['log_every_n_steps'],
+            devices=config['exp']['device'],
+            min_epochs = config['hparams']['min_epochs'],
+            max_epochs = config['hparams']['max_epochs'],
+            num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
+            accelerator=config['exp']['accelerator'],
+            callbacks=[checkpoint_callback, lr_callback],
+            precision='16-mixed',
+            # profiler='pytorch',
+            accumulate_grad_batches=8
+        )
+        os.makedirs(config['exp']['csv_dir'],exist_ok=True)
+        
+        dm = Retinal_Cond_Lightning_Split(
+            config=config
+        )
+        dm.setup(stage='predict')
+        config['exp']['file_path_labels'] = dm.predict_set.file_paths
+        efficient_net_b3 = EfficientNet_B0.load_from_checkpoint(config['exp']['model_ckpt_path'], strict=False, config=config)
+        trainer.predict(model=efficient_net_b3, dataloaders=dm.predict_dataloader() )
         
     elif config['exp']['training_type'] == "swin_b_train":
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
@@ -555,6 +651,36 @@ def pipeline(config):
         dm = Retinal_Cond_Lightning_Split(config=config)
         
         trainer.fit(model=swin_b, datamodule=dm)
+
+
+    elif config['exp']['training_type'] == "swin_b_retrain":
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_loss',
+                                              verbose=False,
+                                              save_last=True,
+                                              save_top_k=config['exp']['save_top_k'],
+                                              save_weights_only=False,
+                                              mode='min',
+                                              filename="swin_b-{epoch:02d}-{step}-{val_loss:.5f}"
+                                              )
+        trainer = pl.Trainer(
+            logger=logger,
+            log_every_n_steps=config['exp']['log_every_n_steps'],
+            devices=config['exp']['device'],
+            min_epochs = config['hparams']['min_epochs'],
+            max_epochs = config['hparams']['max_epochs'],
+            num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
+            accelerator=config['exp']['accelerator'],
+            callbacks=[checkpoint_callback, lr_callback],
+            precision='16-mixed',
+            # profiler='pytorch',
+            accumulate_grad_batches=8
+        )
+        swin_b = Swin_B(config=config)
+        dm = Retinal_Cond_Lightning_Split(config=config)
+        
+        trainer.fit(model=swin_b, datamodule=dm, ckpt_path=config['exp']['model_ckpt_path'])
+
 
 
     elif config['exp']['training_type'] == "swin_b_predict":
