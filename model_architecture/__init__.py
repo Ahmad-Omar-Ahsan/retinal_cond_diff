@@ -4,4 +4,4 @@ from model_architecture.DDPM_DDIM_PL import LightningDDPMDDIM_monai
 from model_architecture.Custom_Inferer import FlexibleConditionalDiffusionInferer
 from model_architecture.Simple_mlp import MLP_classifier
 from model_architecture.resnet_50 import Restnet_50
-from model_architecture.discriminative import EfficientNet_B3, Swin_B
+from model_architecture.discriminative import EfficientNet_B3, Swin_B, EfficientNet_B0
