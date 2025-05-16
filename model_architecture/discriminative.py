@@ -9,6 +9,8 @@ import pickle
 import pandas as pd
 from torchvision import models
 
+
+
 class EfficientNet_B3(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
@@ -149,9 +151,9 @@ class EfficientNet_B0(pl.LightningModule):
         self.test_prediction_labels = []
         self.test_labels = []
 
-        self.train_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['mlp']['num_classes'])
-        self.valid_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['mlp']['num_classes'])
-        self.test_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['mlp']['num_classes'])
+        self.train_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['num_classes'])
+        self.valid_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['num_classes'])
+        self.test_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['num_classes'])
 
         self.preds_labels = []
         self.lr = self.config['hparams']['learning_rate']
@@ -238,6 +240,7 @@ class EfficientNet_B0(pl.LightningModule):
         self.csv_information.extend(csv_info)
         # self.test_labels.extend(labels.cpu().numpy())
 
+
     
     def on_predict_epoch_end(self):
         columns = ["Image", "Predicted Label",]
@@ -256,6 +259,8 @@ class EfficientNet_B0(pl.LightningModule):
             "lr_scheduler": {
                 "scheduler": lr_scheduler,
                 "monitor": "val_loss"}}
+    
+   
 
 class Swin_B(pl.LightningModule):
     def __init__(self, config):
@@ -273,9 +278,9 @@ class Swin_B(pl.LightningModule):
         self.test_prediction_labels = []
         self.test_labels = []
 
-        self.train_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['mlp']['num_classes'])
-        self.valid_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['mlp']['num_classes'])
-        self.test_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['mlp']['num_classes'])
+        self.train_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['num_classes'])
+        self.valid_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['num_classes'])
+        self.test_acc = torchmetrics.classification.Accuracy(task="multiclass", num_classes=self.config['hparams']['num_classes'])
 
         self.preds_labels = []
         self.lr = self.config['hparams']['learning_rate']
@@ -362,6 +367,8 @@ class Swin_B(pl.LightningModule):
         self.csv_information.extend(csv_info)
         # self.test_labels.extend(labels.cpu().numpy())
 
+       
+
     
     def on_predict_epoch_end(self):
         columns = ["Image", "Predicted Label",]
@@ -380,3 +387,6 @@ class Swin_B(pl.LightningModule):
             "lr_scheduler": {
                 "scheduler": lr_scheduler,
                 "monitor": "val_loss"}}
+    
+
+  
