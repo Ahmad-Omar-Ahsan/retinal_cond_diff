@@ -1,4 +1,4 @@
-# RetCond: A Conditional Diffusion Model forSelf-Explanatory Multi-Class Retinal Fundus Image Classification
+# RetCond: A Conditional Diffusion Model for Self-Explanatory Multi-Class Retinal Fundus Image Classification
 
 ## Setup environment
 
