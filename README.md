@@ -1,4 +1,4 @@
-# Conditional Diffusion model for Colour Fundus Photography
+# RetCond: A Conditional Diffusion Model forSelf-Explanatory Multi-Class Retinal Fundus Image Classification
 
 ## Setup environment
 

@@ -25,12 +25,12 @@ def main():
     transform =transforms.Compose([transforms.ToTensor()])
     image = transform(sample)
     filename = (img_path.split('/')[-1]).replace(".png","")
-    timesteps =[250, 500, 750, 1000]
+    timesteps =[100,200,300,400, 500, 600,700, 800,900, 1000]
 
     scheduler_DDPM = DDPMScheduler(
         num_train_timesteps=config['hparams']['num_train_timesteps']
     )
-    noisy_samples = []
+    noisy_samples = [image]
     noise = torch.randn((image.shape[0], image.shape[1], image.shape[2]), device=image.device)
     for i in timesteps:
         t = torch.tensor(i-1, dtype=torch.long, device=image.device)
@@ -48,7 +48,6 @@ def main():
     save_image(grid, save_file_path)
     print(f"Saved image_{i}")
 
-    
 
     for i, noisy_sample in enumerate(noisy_samples):
         # Create a grid with the original image and the current noisy sample
