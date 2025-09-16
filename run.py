@@ -7,7 +7,7 @@ import torch
 import yaml
 from utils import get_config, UK_biobank_data_module, seed_everything, FakeData_lightning, Retinal_Cond_Lightning_Split,  Pickle_Lightning, load_finetune_checkpoint
 from model_architecture import LightningDDPM_monai,  Pretrained_LightningDDPM_monai,Conditional_DDIM_monai,MLP_classifier, Restnet_50, EfficientNet_B3, Swin_B, EfficientNet_B0
-
+torch.set_float32_matmul_precision('medium')
 
 def pipeline(config):
     logger = TensorBoardLogger(config['exp']['logdir'], name=config['exp']["exp_name"])
@@ -103,6 +103,36 @@ def pipeline(config):
     elif config['exp']['training_type'] == 'pretrained':
         checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
                                               monitor='val_loss',
+                                              verbose=False,
+                                              save_last=True,
+                                              save_top_k=config['exp']['save_top_k'],
+                                              save_weights_only=False,
+                                              mode='min',
+                                              filename="diffusion-{epoch:02d}-{step}-{val_loss:.5f}"
+                                              )
+        trainer = pl.Trainer(
+            logger=logger,
+            log_every_n_steps=config['exp']['log_every_n_steps'],
+            devices=config['exp']['device'],
+            min_epochs = config['hparams']['min_epochs'],
+            max_epochs = config['hparams']['max_epochs'],
+            num_sanity_val_steps=config['hparams']['num_sanity_val_steps'],
+            accelerator=config['exp']['accelerator'],
+            callbacks=[checkpoint_callback, lr_callback],
+            precision='16-mixed',
+            # profiler='pytorch',
+            accumulate_grad_batches=8
+        )
+        dm = Retinal_Cond_Lightning_Split(
+            config=config
+        )
+        Pretrained_DDPM_lightning = Pretrained_LightningDDPM_monai.load_from_checkpoint(config['exp']['model_ckpt_path'],  config=config, strict=False)
+        Pretrained_DDPM_lightning.model.num_class_embeds = config['hparams']['num_classes']
+        trainer.fit(model=Pretrained_DDPM_lightning, datamodule=dm)
+
+    elif config['exp']['training_type'] == 'pretrained_classification':
+        checkpoint_callback = ModelCheckpoint(dirpath=os.path.join(config['exp']['ckpt_dir']),
+                                              monitor='val_compound_loss',
                                               verbose=False,
                                               save_last=True,
                                               save_top_k=config['exp']['save_top_k'],

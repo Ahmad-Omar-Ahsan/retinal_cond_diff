@@ -213,6 +213,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         )
         self.lr = config['hparams']['learning_rate']
         self.criterion = F.mse_loss
+        self.cross_entropy = F.cross_entropy
         self.in_channels = config['hparams']['DiffusionModelUnet']['in_channels']
         self.image_h = config['hparams']['image_h']
         self.image_w = config['hparams']['image_w']
@@ -239,6 +240,7 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.target_names = config['hparams']['target_names']
 
         self.CBDM = config['hparams']['CBDM']
+        self.classification = config['hparams']['classification']
         if self.CBDM:
             self.tau = config['hparams']['tau']
 
@@ -248,8 +250,30 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         noise = torch.randn((images.shape[0], images.shape[1], images.shape[2], images.shape[3])).to(images.device)
         timesteps = torch.randint(0, self.inferer.scheduler.num_train_timesteps, (images.shape[0],)).to(images.device)
         noise_pred = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=labels)
+
         
         train_loss = self.criterion(noise_pred.float(), noise.float())
+        batch_size = images.shape[0]
+        if self.classification:
+            classification_noise = torch.repeat_interleave(noise, self.num_classes,dim=0)
+            classification_timesteps = torch.repeat_interleave(timesteps, self.num_classes, dim=0)
+            classes = torch.repeat_interleave(self.classes, batch_size, dim=0).to(images.device)
+            classification_images = images.repeat(self.num_classes, 1, 1, 1)
+            output = self.inferer(inputs=classification_images, diffusion_model=self.model, noise=classification_noise, timesteps=classification_timesteps, conditioning=classes)
+            classification_logits = -1.0 * self.criterion(classification_noise, output, reduction='none').to(self.device)
+            classification_logits = classification_logits.mean(dim=(1,2,3)).view(-1)
+            classification_logits = torch.stack([classification_logits[i::batch_size] for i in range(batch_size)],dim=0).to(images.device)
+            classification_logits_mean = torch.mean(classification_logits, dim=-1)
+            classification_logits_std = torch.std(classification_logits, dim=-1)
+            normalized_logits = (classification_logits - classification_logits_mean) / (classification_logits_std + 1e-8)
+            cross_entropy_loss = self.cross_entropy(normalized_logits,labels)
+            self.log("train_denoising_loss", train_loss, prog_bar=True, on_step=True, on_epoch=True)
+            self.log("train_cross_entropy_loss", cross_entropy_loss, prog_bar=True, on_step=True, on_epoch=True)
+            compound_loss = train_loss + cross_entropy_loss
+            self.log("train_compound_loss", compound_loss, prog_bar=True, on_epoch=True, on_step=True)
+
+            return compound_loss
+
         # train_loss_mean = torch.mean(train_loss, dim=[0,1,2,3])
         self.log("training_loss", train_loss, prog_bar=True, on_step=True, on_epoch=True)
         if not self.CBDM:
@@ -289,6 +313,28 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         noise_pred = self.inferer(inputs=images, diffusion_model=self.model, noise=noise, timesteps=timesteps, conditioning=labels)
 
         val_loss = self.criterion(noise_pred.float(), noise.float())
+        batch_size = images.shape[0]
+        if self.classification:
+
+            classification_noise = torch.repeat_interleave(noise, self.num_classes,dim=0)
+            classification_timesteps = torch.repeat_interleave(timesteps, self.num_classes, dim=0)
+            classes = torch.repeat_interleave(self.classes, batch_size, dim=0).to(images.device)
+            classification_images = images.repeat(self.num_classes, 1, 1, 1)
+            output = self.inferer(inputs=classification_images, diffusion_model=self.model, noise=classification_noise, timesteps=classification_timesteps, conditioning=classes)
+            classification_logits = -1.0 * self.criterion(classification_noise, output, reduction='none').to(self.device)
+            classification_logits = classification_logits.mean(dim=(1,2,3)).view(-1)
+            classification_logits = torch.stack([classification_logits[i::batch_size] for i in range(batch_size)],dim=0).to(images.device)
+            classification_logits_mean = torch.mean(classification_logits, dim=-1)
+            classification_logits_std = torch.std(classification_logits, dim=-1)
+            normalized_logits = (classification_logits - classification_logits_mean) / (classification_logits_std + 1e-8)
+            cross_entropy_loss = self.cross_entropy(normalized_logits,labels)
+            self.log("val_denoising_loss", val_loss, prog_bar=True, on_step=True, on_epoch=True)
+            self.log("val_cross_entropy_loss", cross_entropy_loss, prog_bar=True, on_step=True, on_epoch=True)
+            compound_loss = val_loss + cross_entropy_loss
+            self.log("val_compound_loss", compound_loss, prog_bar=True, on_epoch=True, on_step=True)
+
+            return compound_loss
+        
         self.log("val_loss", val_loss, prog_bar=True, on_step=True, on_epoch=True)
         return val_loss
 
@@ -560,4 +606,3 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         else:
             optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
             return optimizer
-            
