@@ -3,19 +3,34 @@ import os
 import torch
 import numpy as np
 import pandas as pd
+from skimage import exposure
 
-from pytorch_lightning import LightningDataModule
+from lightning import LightningDataModule
 from sklearn.model_selection import train_test_split
 from lightning.pytorch.utilities.types import EVAL_DATALOADERS, TRAIN_DATALOADERS
-from torch.utils.data import DataLoader, Dataset, random_split, Subset
+from torch.utils.data import DataLoader, Dataset, random_split, Subset, WeightedRandomSampler
 from typing import List, Optional, Dict
 from torchvision.io import read_image
-from torchvision import transforms
+from torchvision.transforms import RandomHorizontalFlip, ColorJitter, Normalize, ToTensor, Compose, Resize
 from PIL import Image 
 from torchvision.datasets import ImageFolder
 from torchvision.utils import save_image
 from timm.data import create_transform
 from timm.data.constants import IMAGENET_DEFAULT_MEAN, IMAGENET_DEFAULT_STD
+
+class ScaleToMinusOneOne:
+    """Scales tensor pixel values from [0, 1] to [-1, 1]."""
+    def __call__(self, tensor):
+        return (tensor * 2) - 1
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}()"
+    
+
+def unnormalize_minus_one_to_one(tensor):
+    """Convert [-1, 1] range tensor back to [0, 1] for visualization."""
+    tensor = (tensor + 1) / 2
+    return torch.clamp(tensor, 0, 1)
 
 
 class BlackStripCropping:
@@ -45,21 +60,44 @@ class BlackStripCropping:
         return f"{self.__class__.name__}(prob={self.prob}, percentage={self.percentage})"
     
 
-def build_transform(is_train, config, model_type):
-    mean = IMAGENET_DEFAULT_MEAN
-    std = IMAGENET_DEFAULT_STD
+def build_transform(is_train, mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5)):
     # train transform
     if is_train:
-        # this should always dispatch to transforms_imagenet_train
         t = []
-        t.append(transforms.ToTensor())
+        t.append(RandomHorizontalFlip(p=0.5))
+        # t.append(ColorJitter(brightness=0.3, contrast=0.2))
+        t.append(ToTensor())
         t.append(BlackStripCropping(prob=0.5))
-        return transforms.Compose(t)
+        t.append(Normalize(mean=mean, std=std))
+        return Compose(t)
     # everything else
     else:
         t = []
-        t.append(transforms.ToTensor())
-        return transforms.Compose(t)
+        t.append(Resize(size=(224,224)))
+        t.append(ToTensor())
+        t.append(Normalize(mean=mean, std=std))
+        return Compose(t)
+    
+
+    
+
+def build_slo_transform(is_train, mean=(0.5), std=(0.5)):
+    # train transform
+    if is_train:
+        t = []
+        t.append(ToTensor())
+        t.append(Resize(size=(224,224)))
+        t.append(RandomHorizontalFlip(p=0.5))
+        t.append(Normalize(mean=mean, std=std))
+        return Compose(t)
+    # everything else
+    else:
+        t = []
+        t.append(ToTensor())
+        t.append(Resize(size=(224,224)))
+        t.append(Normalize(mean=mean, std=std))
+        return Compose(t)
+
 
 class Fake_Dataset(Dataset):
     def __init__(self, size=4, image_size=[3,224,224]):
@@ -94,15 +132,15 @@ class PickleDataset(Dataset):
     
 
 class UK_biobank_retinal(Dataset):
-    def __init__(self, sample_list, transform=transforms.Compose([transforms.ToTensor()])):
+    def __init__(self, sample_list, transform=Compose([ToTensor()])):
         super().__init__()
         self.sample_list = sample_list
         mean = IMAGENET_DEFAULT_MEAN
         std = IMAGENET_DEFAULT_STD
         t = []
-        t.append(transforms.ToTensor())
+        t.append(ToTensor())
         # t.append(transforms.Normalize(mean, std))
-        self.transform = transforms.Compose(t)
+        self.transform = Compose(t)
         
     def __len__(self):
         return len(self.sample_list)
@@ -116,17 +154,53 @@ class UK_biobank_retinal(Dataset):
     
     
 
+class SLO_Dataset(Dataset):
+    def __init__(self, root_dir, transform):
+        self.root_dir = root_dir
+        self.transform = transform
+
+        self.samples = []
+        self.class_to_idx = {}
+
+        class_names = sorted(entry.name for entry in os.scandir(root_dir) if entry.is_dir())
+        self.class_to_idx = {cls_name: idx for idx, cls_name in enumerate(class_names)}
+
+        for cls_name in class_names:
+            cls_dir = os.path.join(root_dir, cls_name)
+            for file_name in os.listdir(cls_dir):
+                if file_name.endswith(".npy"):
+                    file_path = os.path.join(cls_dir, file_name)
+                    self.samples.append((file_path, self.class_to_idx[cls_name]))
+
+    def __len__(self):
+        return len(self.samples)
+    
+    def __getitem__(self, idx):
+        file_path, label = self.samples[idx]
+        np_array = np.load(file_path)
+        np_array = exposure.equalize_adapthist(np_array)
+        np_array = (np_array * 255).astype(np.uint8)
+        np_array = np.transpose(np_array, (1, 2, 0))  # HWC to CHW
+        # tensor = torch.from_numpy(np_array).float()
+
+        # if tensor.dim() == 3 and tensor.shape[0] == 1:
+        #     tensor = tensor.repeat(3, 1, 1)
+
+        if self.transform:
+            tensor = self.transform(np_array)
+
+        return tensor, label
 
 
 class Retinal_Predict_dataset(Dataset):
-    def __init__(self, config):
+    def __init__(self, config, transform_val_test):
         self.config = config
         self.data_dir = self.config['exp']['predict_dir']
         self.size = self.config['hparams']['batch_size']
         self.num_classes = self.config['hparams']['num_classes']
-        self.transform = build_transform(is_train=self.config['hparams']['test_val_is_train'], config=config, model_type = self.config['hparams']['model_type'])
-        self.sample_lists = os.listdir(self.data_dir)
-        self.file_paths = [os.path.join(self.config['exp']['predict_dir'], file) for file in self.sample_lists]
+        self.transform = transform_val_test
+        self.sample_lists = sorted(os.listdir(self.data_dir))
+        self.file_paths = [os.path.join(self.data_dir, file) for file in self.sample_lists]
         
     def __len__(self):
         return len(self.sample_lists)
@@ -167,6 +241,96 @@ class FakeData_lightning(LightningDataModule):
     def predict_dataloader(self):
         return DataLoader(self.test, batch_size=self.size, num_workers=self.num_workers)
     
+class FB_BRSET_Retinal_Dataset(Dataset):
+    def __init__(self, csv_file, root_dir, config, transform=Compose([ToTensor()])):
+        super().__init__()
+        self.dataframe = pd.read_csv(csv_file)
+        self.root_dir = root_dir
+        self.transform = transform
+        self.map = {
+            "amd": 0,
+            "diabetic_retinopathy": 1,
+            "myopic_fundus": 2,
+            "no_disease": 3
+        }
+        self.config = config
+        self.sensitive_attr = config['hparams']['resampling']["sensitive_attribute"]
+        # self.sens_classes = config['hparams']['resampling']['sens_classes']
+
+        self.sex_mapping = {'Male': 0, 'Female': 1, 1: 0, 2: 1}
+        self.camera_mapping = {'Canon CR': 0, 'NIKON NF5050': 1}
+
+    def __len__(self):
+        return len(self.dataframe)
+    
+    def __getitem__(self, index):
+        label = self.dataframe.loc[index, "label"]
+        img_filename = ".".join([self.dataframe.loc[index, "image_id"], 'png'])
+        img_path = os.path.join(self.root_dir, label, img_filename)
+
+        image = Image.open(img_path).convert("RGB")
+        y_label = torch.tensor(self.map[label])
+
+        # --- Handle sensitive attributes (single or multiple) ---
+        attrs = self.sensitive_attr if isinstance(self.sensitive_attr, list) else [self.sensitive_attr]
+        sens_values = []
+        for attr in attrs:
+            value = self.dataframe.loc[index, attr]
+            if attr == 'patient_sex':
+                value = self.sex_mapping.get(value, value)
+            elif attr == 'camera':
+                value = self.camera_mapping.get(value, value)
+            elif attr == 'patient_age':
+                value = 1 if value >= 65 else 0
+            sens_values.append(value)
+
+        # If multiple sensitive attributes, combine them into a tuple
+        y_subgroup_sensitive = torch.tensor(sens_values, dtype=torch.long) if len(sens_values) > 1 else torch.tensor(sens_values[0])
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image, y_label, y_subgroup_sensitive
+
+    def group_counts(self, resample_which='group'):
+        """
+        Handles resampling groups based on one or more sensitive attributes.
+        """
+        attrs = self.sensitive_attr if isinstance(self.sensitive_attr, list) else [self.sensitive_attr]
+        df = self.dataframe.copy()
+
+        # Convert all attributes into numeric codes
+        for attr in attrs:
+            if attr == 'patient_sex':
+                df[attr] = df[attr].map(self.sex_mapping)
+            elif attr == 'camera':
+                df[attr] = df[attr].map(self.camera_mapping)
+            elif attr == 'patient_age':
+                df[attr] = (df[attr] >= 65).astype(int)
+
+        # Create a unique intersectional group id
+        group_array = df[attrs].astype(str).agg('_'.join, axis=1)
+        unique_groups = sorted(group_array.unique())
+        group_to_idx = {g: i for i, g in enumerate(unique_groups)}
+        group_idx = group_array.map(group_to_idx).values
+
+        group_tensor = torch.LongTensor(group_idx)
+        group_counts = torch.bincount(group_tensor, minlength=len(unique_groups)).float()
+
+        self._group_array = group_tensor
+        self._group_counts = group_counts
+
+        return group_idx, group_counts
+
+    def get_weights(self, resample_which='group'):
+        """
+        Compute inverse frequency weights for sampling based on intersectional groups.
+        """
+        sens_attr, group_num = self.group_counts(resample_which)
+        group_weights = [1 / x.item() if x.item() > 0 else 0 for x in group_num]
+        sample_weights = [group_weights[i] for i in sens_attr]
+        return sample_weights
+
 
 
 
@@ -178,15 +342,15 @@ class Retinal_Cond_Lightning_Split(LightningDataModule):
         self.data_dir = self.config['exp']['data_dir']
         self.size = self.config['hparams']['batch_size']
         self.num_classes = self.config['hparams']['num_classes']
-        self.transform_train = build_transform(is_train=self.config['hparams']['train_is_train'], config=config, model_type = self.config['hparams']['model_type'])
-        self.transform_val_test = build_transform(is_train=self.config['hparams']['test_val_is_train'], config=config, model_type = self.config['hparams']['model_type'])
+        self.transform_train = build_transform(is_train=self.config['hparams']['train_is_train'])
+        self.transform_val_test = build_transform(is_train=self.config['hparams']['test_val_is_train'])
         self.train_dir = os.path.join(self.data_dir,'train')
         self.val_dir = os.path.join(self.data_dir, 'val')
         self.test_dir = os.path.join(self.data_dir, 'test')
 
     def setup(self, stage):
         if stage == 'predict':
-            predict_dataset = Retinal_Predict_dataset(self.config)
+            predict_dataset = Retinal_Predict_dataset(self.config, transform_val_test = self.transform_val_test)
             self.predict_set = predict_dataset
             print(f"Predict dataset length: {len(self.predict_set)}")
         else:
@@ -212,7 +376,91 @@ class Retinal_Cond_Lightning_Split(LightningDataModule):
     
     def predict_dataloader(self):
         return DataLoader(self.predict_set, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+    
+class Camera_Lightning_Split(Retinal_Cond_Lightning_Split):
+    def __init__(self, config):
+        super().__init__(config)
+        self.transform_train = build_transform(is_train=self.config['hparams']['train_is_train'], mean = IMAGENET_DEFAULT_MEAN, std = IMAGENET_DEFAULT_STD)
+        self.transform_val_test = build_transform(is_train=self.config['hparams']['test_val_is_train'], mean = IMAGENET_DEFAULT_MEAN, std = IMAGENET_DEFAULT_STD)
+    
+class SLO_Lightning_Split(Retinal_Cond_Lightning_Split):
+    def __init__(self, config):
+        super().__init__(config)
+        self.config = config 
+        self.in_channel = self.config['hparams']['DiffusionModelUnet']['in_channels']
+        if self.in_channel == 1:
+            mean = (0.5)
+            std = (0.5)
+        else:
+            mean = (0.5, 0.5, 0.5)
+            std = (0.5, 0.5, 0.5)   
+        self.transform_train = build_slo_transform(is_train=self.config['hparams']['train_is_train'], mean=mean, std=std)
+        self.transform_val_test = build_slo_transform(is_train=self.config['hparams']['test_val_is_train'], mean=mean, std=std)
 
+
+    def setup(self, stage):
+        if stage == 'predict':
+            predict_dataset = Retinal_Predict_dataset(self.config)
+            self.predict_set = predict_dataset
+            print(f"Predict dataset length: {len(self.predict_set)}")
+        else:
+            if stage == 'fit':
+                train_dataset = SLO_Dataset(root_dir=self.train_dir, transform=self.transform_train)
+                valid_dataset = SLO_Dataset(root_dir=self.val_dir, transform=self.transform_val_test)
+                self.train = train_dataset
+                self.val = valid_dataset
+                print(f"Train, val length:  {len(self.train), len(self.val)}")
+            elif stage == 'test':
+                test_dataset = SLO_Dataset(root_dir=self.test_dir, transform=self.transform_val_test)
+                self.test = test_dataset
+                print(f"Test length: {len(self.test)}")
+
+
+class Resampling_Lightning_Split(Retinal_Cond_Lightning_Split):
+    def __init__(self, config):
+        super().__init__(config)
+        self.config = config
+        self.train_csv = os.path.join(self.config['exp']["csv_data_split_dir"],"BRSET_train_split.csv")
+        self.val_csv = os.path.join(self.config['exp']["csv_data_split_dir"],"BRSET_val_split.csv")
+        self.test_csv = os.path.join(self.config['exp']["csv_data_split_dir"],"BRSET_test_split.csv")
+
+    def setup(self, stage):
+        if stage == 'predict':
+            predict_dataset = Retinal_Predict_dataset(self.config)
+            self.predict_set = predict_dataset
+            print(f"Predict dataset length: {len(self.predict_set)}")
+        else:
+            if stage == 'fit':
+                
+
+                train_dataset = FB_BRSET_Retinal_Dataset(csv_file=self.train_csv,
+                                                         root_dir=self.train_dir, 
+                                                         config=self.config, 
+                                                         transform=self.transform_train)
+                valid_dataset = ImageFolder(root=self.val_dir, transform=self.transform_val_test)
+                self.train = train_dataset
+                self.val = valid_dataset
+                print(f"Train, val length:  {len(self.train), len(self.val)}")
+                weights = train_dataset.get_weights(resample_which = self.config['hparams']['resampling']['resampling_which'])
+                g = torch.Generator()
+                g.manual_seed(self.config['hparams']['seed'])
+                self.sampler = WeightedRandomSampler(weights, len(weights), replacement=True, generator = g)
+            elif stage == 'test':
+                test_dataset = ImageFolder(root=self.test_dir, transform=self.transform_val_test)
+                self.test = test_dataset
+                print(f"Test length: {len(self.test)}")
+
+    def train_dataloader(self):
+        return DataLoader(self.train, batch_size=self.size, num_workers=self.config['exp']['num_workers'], shuffle=False, sampler=self.sampler)
+    
+    def val_dataloader(self):
+        return DataLoader(self.val, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+
+    def test_dataloader(self):
+        return DataLoader(self.test, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
+    
+    def predict_dataloader(self):
+        return DataLoader(self.predict_set, batch_size=self.size, num_workers=self.config['exp']['num_workers'])
 
 
 class Pickle_Lightning(LightningDataModule):
@@ -259,7 +507,7 @@ class UK_biobank_data_module(LightningDataModule):
         self.config = config
         
     def prepare_data(self):
-        self.transform = transforms.Compose([transforms.ToTensor()])
+        self.transform = Compose([ToTensor()])
         self.data_dir = self.config['exp']['data_dir']
         self.file_pattern = f"*.{self.config['exp']['image_extension']}"
         self.files_path = os.path.join(self.data_dir, self.file_pattern)

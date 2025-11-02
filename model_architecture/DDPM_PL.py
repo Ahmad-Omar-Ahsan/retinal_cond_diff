@@ -1,4 +1,4 @@
-import pytorch_lightning as pl
+import lightning.pytorch as pl
 import torch
 import random
 import os
@@ -167,6 +167,46 @@ class LightningDDPM_monai(pl.LightningModule):
     
 
 
+class UnNormalize(object):
+    def __init__(self, mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5)):
+        """
+        Args:
+            mean (sequence): Sequence of means for each channel.
+            std (sequence): Sequence of standard deviations for each channel.
+        """
+        self.mean = torch.tensor(mean).view(1, 1, -1, 1, 1)  # shape (1, C, 1, 1)
+        self.std = torch.tensor(std).view(1, 1, -1, 1, 1)
+
+    def __call__(self, tensor):
+        """
+        Args:
+            tensor (Tensor): Tensor image of size (C, H, W) or (B, C, H, W) to be unnormalized.
+        Returns:
+            Tensor: Unnormalized image(s).
+        """
+
+        self.mean = self.mean.to(device=tensor.device, dtype=tensor.dtype)
+        self.std = self.std.to(device=tensor.device, dtype=tensor.dtype)
+
+        if not torch.is_tensor(tensor):
+            raise TypeError(f"Input tensor expected, got {type(tensor)}")
+        
+        if tensor.ndim == 3:
+            # Single image (C, H, W)
+            return tensor * self.std.view(-1, 1, 1) + self.mean.view(-1, 1, 1)
+        elif tensor.ndim == 5:
+            # Batch with multiple classes (B, N_classes, C, H, W)
+            return tensor * self.std + self.mean
+        elif tensor.ndim == 4:
+            # Regular batch (B, C, H, W)
+            mean = self.mean.view(1, -1, 1, 1)
+            std = self.std.view(1, -1, 1, 1)
+            return tensor * std + mean
+        else:
+            raise ValueError(f"Expected tensor with 3, 4, or 5 dims, got {tensor.ndim}")
+
+
+
 class Pretrained_LightningDDPM_monai(pl.LightningModule):
     def __init__(self, config):
         super().__init__()
@@ -240,9 +280,9 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         self.target_names = config['hparams']['target_names']
 
         self.CBDM = config['hparams']['CBDM']
-        self.classification = config['hparams']['classification']
         if self.CBDM:
             self.tau = config['hparams']['tau']
+        self.unormalize = UnNormalize(mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
 
     def training_step(self, batch, batch_idx, dataloader_idx=0):
         images, labels = batch
@@ -325,11 +365,13 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
             
             self.scheduler_DDPM.set_timesteps(num_inference_steps=self.num_train_timesteps)
             images = self.inferer.sample(input_noise=self.noise, diffusion_model=self.model, scheduler=self.scheduler_DDPM, conditioning=labels)
+            images = self.unormalize(images)
             grid = make_grid(images, nrow=self.num_classes)
             self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDPM", grid, current_epoch)
 
             self.scheduler_DDIM.set_timesteps(num_inference_steps=self.num_inference_timesteps)
             images = self.inferer.sample(input_noise=self.noise, diffusion_model=self.model, scheduler=self.scheduler_DDIM, conditioning=labels)
+            images = self.unormalize(images)
             grid = make_grid(images, nrow=self.num_classes)
             self.logger.experiment.add_image(f"Generated retinal image in validation epoch end DDIM", grid, current_epoch)
 
@@ -563,3 +605,5 @@ class Pretrained_LightningDDPM_monai(pl.LightningModule):
         else:
             optimizer = torch.optim.Adam(self.model.parameters(), lr=self.lr)
             return optimizer
+        
+
