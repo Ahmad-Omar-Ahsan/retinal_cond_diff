@@ -225,7 +225,7 @@ class Conditional_DDIM_monai(pl.LightningModule):
         )
         self.num_inference_timesteps = config['hparams']['num_inference_timesteps']
         self.inferer = FlexibleConditionalDiffusionInferer(
-            scheduler=self.scheduler
+            scheduler=self.scheduler_DDPM
         )
         self.lr = config['hparams']['learning_rate']
         self.criterion = F.mse_loss
