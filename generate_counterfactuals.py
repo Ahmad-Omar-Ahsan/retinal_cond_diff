@@ -118,7 +118,7 @@ def generate_counterfactuals(config, filepaths=None):
         batch_paths = filepaths_list[start_idx:start_idx + batch_size]
         batch_labels, batch_preds, batch_images = [], [], []
 
-        for filepath in batch_paths:
+        for idx, filepath in enumerate(batch_paths):
             filename = os.path.splitext(os.path.basename(filepath))[0]
             image_path = os.path.join(
                 config['exp']['counterfactual_dir'],
