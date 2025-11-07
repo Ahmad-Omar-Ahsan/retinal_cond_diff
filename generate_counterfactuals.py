@@ -119,6 +119,15 @@ def generate_counterfactuals(config, filepaths=None):
         batch_labels, batch_preds, batch_images = [], [], []
 
         for filepath in batch_paths:
+            filename = os.path.splitext(os.path.basename(filepath))[0]
+            image_path = os.path.join(
+                config['exp']['counterfactual_dir'],
+                f"A_{batch_labels[idx].cpu().numpy()}_P_{batch_preds[idx].cpu().numpy()}_{filename}.png"
+            )
+
+            if os.path.exists(image_path):
+                print(f"Path exists: {image_path}")
+                continue
             values = selected_trials[filepath]
             label = torch.tensor(np.array(values["test_label"]), device=device)
             pred = torch.tensor(np.array(values["predicted_label"]), device=device)
@@ -127,7 +136,8 @@ def generate_counterfactuals(config, filepaths=None):
             batch_labels.append(label)
             batch_preds.append(pred)
             batch_images.append(image)
-
+        if len(batch_images) == 0:
+            continue
         batch_labels = torch.stack(batch_labels)      
         batch_preds = torch.stack(batch_preds)       
         batch_images = torch.stack(batch_images)  
